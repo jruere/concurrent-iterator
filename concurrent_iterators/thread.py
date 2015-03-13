@@ -2,8 +2,11 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import collections
-import Queue
 import threading
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 
 
 class SpawnedIterator(collections.Iterator):
@@ -17,7 +20,7 @@ class SpawnedIterator(collections.Iterator):
     def __init__(self, iterable, maxsize=100):
         iterator = iter(iterable)
 
-        self._queue = Queue.Queue(maxsize)
+        self._queue = Queue(maxsize)
         self._thread = threading.Thread(
             target=self._run, args=(iterator, self._queue))
         self._thread.daemon = True

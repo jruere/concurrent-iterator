@@ -35,5 +35,5 @@ class AbstractSpawnedIteratorTest(object):
         results = list(subject)
         tf = time.time() - t0
 
-        self.assertEqual(range(count), results)
+        self.assertEqual(list(range(count)), results)
         self.assertAlmostEqual(0, tf, 1)

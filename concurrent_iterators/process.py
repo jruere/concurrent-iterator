@@ -4,7 +4,10 @@ from __future__ import absolute_import, division, unicode_literals
 import collections
 import logging
 import multiprocessing
-import Queue
+try:
+    from queue import Empty
+except ImportError:
+    from Queue import Empty
 
 
 class SpawnedIterator(collections.Iterator):
@@ -41,7 +44,7 @@ class SpawnedIterator(collections.Iterator):
                     self._process.join()
                     raise StopIteration
                 return item
-            except Queue.Empty:
+            except Empty:
                 pass
         self._log.debug("Producer is exhausted.")
         raise StopIteration
