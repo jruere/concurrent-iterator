@@ -5,7 +5,7 @@ import logging
 import unittest
 
 from concurrent_iterator.thread import SpawnedIterator
-from tests import AbstractSpawnedIteratorTest
+from concurrent_iterator.tests import AbstractSpawnedIteratorTest
 
 logging.basicConfig(level=logging.WARNING)
 
