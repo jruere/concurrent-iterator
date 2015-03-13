@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 import logging
 import unittest
 
-from concurrent_iterators.process import SpawnedIterator
+from concurrent_iterator.process import SpawnedIterator
 from tests import AbstractSpawnedIteratorTest
 
 logging.basicConfig(level=logging.DEBUG)

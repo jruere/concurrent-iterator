@@ -1,6 +1,6 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
-from concurrent_iterators import ISpawnedIterator
+from concurrent_iterator import ISpawnedIterator
 
 
 class SpawnedIterator(ISpawnedIterator):
