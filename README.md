@@ -1,13 +1,9 @@
 # concurrent-iterator
 
 [![Downloads](https://pypip.in/download/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
-
 [![Supported Python versions](https://pypip.in/py_versions/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
-
 [![Development Status](https://pypip.in/status/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
-
 [![Download format](https://pypip.in/format/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
-
 [![License](https://pypip.in/license/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
 
 
