@@ -25,4 +25,5 @@ setup(
     zip_safe=False,
     packages=['concurrent_iterator', 'concurrent_iterator.tests'],
     platforms=["POSIX"],
+    test_suite="concurrent_iterator.tests",
 )
