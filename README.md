@@ -1,5 +1,16 @@
 # concurrent-iterator
 
+[![Downloads](https://pypip.in/download/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+
+[![Supported Python versions](https://pypip.in/py_versions/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+
+[![Development Status](https://pypip.in/status/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+
+[![Download format](https://pypip.in/format/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+
+[![License](https://pypip.in/license/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+
+
 Iterators that consume and buffer generator values in a background
 thread/process.
 
@@ -19,7 +30,7 @@ ThreadSpawnedIterator is useful for IO bound generators.
 ProcessSpawnedIterator is useful for CPU or IO bound generators.
 It has the complications of dealing with processes (different memory spaces,
 logging, etc).
-For logging, module `multiprocessing-logging` can be used.
+For logging, module [`multiprocessing-logging`](https://github.com/jruere/multiprocessing-logging) can be used.
 
 
 ## Usage
