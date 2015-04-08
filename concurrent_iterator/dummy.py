@@ -1,9 +1,9 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
-from concurrent_iterator import ISpawnedIterator
+from concurrent_iterator import IProducer
 
 
-class SpawnedIterator(ISpawnedIterator):
+class Producer(IProducer):
     """Dummy implementation that doesn't use concurrency."""
 
     def __init__(self, iterable):
@@ -14,4 +14,3 @@ class SpawnedIterator(ISpawnedIterator):
 
     def next(self):
         return self.__next__()
-

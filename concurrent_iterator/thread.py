@@ -9,7 +9,7 @@ except ImportError:
     from Queue import Queue
 
 
-class SpawnedIterator(collections.Iterator):
+class Producer(collections.Iterator):
     """Uses a thread to produce and buffer values from the given iterable.
 
     This implementation is useful for IO bound consumers.
@@ -29,7 +29,7 @@ class SpawnedIterator(collections.Iterator):
 
     def __next__(self):
         item = self._queue.get()
-        if item is SpawnedIterator._SENTINEL:
+        if item is Producer._SENTINEL:
             self._thread.join()
             raise StopIteration
         return item
@@ -41,4 +41,4 @@ class SpawnedIterator(collections.Iterator):
     def _run(iterator, queue):
         for item in iterator:
             queue.put(item)
-        queue.put(SpawnedIterator._SENTINEL)  # Signal we are done.
+        queue.put(Producer._SENTINEL)  # Signal we are done.

@@ -15,15 +15,15 @@ thread/process.
 
 There are currently 3 implementations:
 
-* DummySpawnedIterator: non-concurrent implementation
-* ThreadSpawnedIterator: uses a background thread to run the generator
-* ProcessSpawnedIterator: uses a background process to run the generator
+* `dummy.Producer`: non-concurrent implementation
+* `thread.Producer`: uses a background thread to run the generator
+* `process.Producer`: uses a background process to run the generator
 
-DummySpawnedIterator is useless in practice.
+`dummy.Producer` is useless in practice.
 
-ThreadSpawnedIterator is useful for IO bound generators.
+`thread.Producer` is useful for IO bound generators.
 
-ProcessSpawnedIterator is useful for CPU or IO bound generators.
+`process.Producer` is useful for CPU or IO bound generators.
 It has the complications of dealing with processes (different memory spaces,
 logging, etc).
 For logging, module [`multiprocessing-logging`](https://github.com/jruere/multiprocessing-logging) can be used.
@@ -33,11 +33,11 @@ For logging, module [`multiprocessing-logging`](https://github.com/jruere/multip
 
 Basic example:
 
-    from concurrent_iterator.thread import SpawnedIterator
+    from concurrent_iterator.thread import Producer
     
     ...
     
-    items = SpawnedIterator(slow_generator, max_size=5)
+    items = Producer(slow_generator, max_size=5)
     
     for item in items:
         [Do some time consuming task]

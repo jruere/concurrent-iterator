@@ -4,15 +4,15 @@ from __future__ import absolute_import, division, unicode_literals
 import time
 
 
-class AbstractSpawnedIteratorTest(object):
+class AbstractProducerTest(object):
 
-    def _create_spawned_iterator(self, iterable):
+    def _create_producer(self, iterable):
         raise NotImplementedError
 
     def test_when_a_generator_is_spawned_then_it_generates_the_same_values(self):
         values = [1, 2, 3]
 
-        subject = self._create_spawned_iterator(iter(values))
+        subject = self._create_producer(iter(values))
 
         results = list(subject)
 
@@ -27,7 +27,7 @@ class AbstractSpawnedIteratorTest(object):
         count = 3
         delay = 0.1
 
-        subject = self._create_spawned_iterator(iter(gen(count, delay)))
+        subject = self._create_producer(iter(gen(count, delay)))
 
         time.sleep(count * delay)  # Give background thread time to consume.
 

@@ -10,7 +10,7 @@ except ImportError:
     from Queue import Empty
 
 
-class SpawnedIterator(collections.Iterator):
+class Producer(collections.Iterator):
     """Uses a separate process to produce and buffer values from the given
     iterable.
 
@@ -29,7 +29,7 @@ class SpawnedIterator(collections.Iterator):
 
         self._queue = multiprocessing.Queue(maxsize)
         self._process = multiprocessing.Process(
-            target=SpawnedIterator._run, args=(self._iterator, self._queue))
+            target=Producer._run, args=(self._iterator, self._queue))
         self._process.daemon = True
         self._log = logging.getLogger(__name__ + '.' + type(self).__name__)
 
@@ -40,7 +40,7 @@ class SpawnedIterator(collections.Iterator):
         while self._queue or self._process.is_alive():
             try:
                 item = self._queue.get(timeout=0.01)
-                if item == SpawnedIterator._SENTINEL:
+                if item == Producer._SENTINEL:
                     self._process.join()
                     raise StopIteration
                 return item
@@ -56,4 +56,4 @@ class SpawnedIterator(collections.Iterator):
     def _run(iterator, queue):
         for item in iterator:
             queue.put(item)
-        queue.put(SpawnedIterator._SENTINEL)
+        queue.put(Producer._SENTINEL)

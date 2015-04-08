@@ -4,13 +4,13 @@ from __future__ import absolute_import, division, unicode_literals, print_functi
 import logging
 import unittest
 
-from concurrent_iterator.process import SpawnedIterator
-from concurrent_iterator.tests import AbstractSpawnedIteratorTest
+from concurrent_iterator.process import Producer
+from concurrent_iterator.tests import AbstractProducerTest
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class ProcessSpawnedIteratorTest(unittest.TestCase, AbstractSpawnedIteratorTest):
+class ProcessProducerTest(unittest.TestCase, AbstractProducerTest):
 
-    def _create_spawned_iterator(self, iterable):
-        return SpawnedIterator(iterable)
+    def _create_producer(self, iterable):
+        return Producer(iterable)

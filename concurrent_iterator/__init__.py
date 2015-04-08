@@ -6,7 +6,7 @@ from collections import Iterator
 __version__ = '0.1'
 
 
-class ISpawnedIterator(Iterator):
+class IProducer(Iterator):
     """Interface for SpawnedIterators."""
 
     __metaclass__ = ABCMeta
@@ -14,3 +14,7 @@ class ISpawnedIterator(Iterator):
     @abstractmethod
     def __next__(self):
         pass
+
+
+# Legacy name.
+ISpawnedIterator = IProducer
