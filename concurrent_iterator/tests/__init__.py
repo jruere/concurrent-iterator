@@ -1,7 +1,10 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
 
+from contextlib import closing
 import time
+
+import mock
 
 
 class AbstractProducerTest(object):
@@ -37,3 +40,37 @@ class AbstractProducerTest(object):
 
         self.assertEqual(list(range(count)), results)
         self.assertAlmostEqual(0, tf, 1)
+
+
+class AbstractConsumerTest(object):
+
+    def _create_consumer(self, coroutine):
+        raise NotImplementedError
+
+    def test_when_a_value_is_sent_then_it_is_forwarded_to_the_coroutine(self):
+        coroutine = mock.MagicMock()
+
+        with closing(self._create_consumer(coroutine)) as subject:
+            subject.send("a value")
+
+        coroutine.send.assert_called_once_with("a value")
+
+    def test_when_closed_then_sending_should_not_work(self):
+        coroutine = mock.MagicMock()
+
+        subject = self._create_consumer(coroutine)
+
+        subject.close()
+
+        self.assertRaises(ValueError, subject.send, 0)
+        coroutine.assert_has_calls([])
+
+    def test_when_closed_then_closing_should_not_work(self):
+        coroutine = mock.MagicMock()
+
+        subject = self._create_consumer(coroutine)
+
+        subject.close()
+
+        self.assertRaises(ValueError, subject.close)
+        coroutine.assert_has_calls([])

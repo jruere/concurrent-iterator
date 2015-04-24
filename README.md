@@ -7,8 +7,7 @@
 [![License](https://pypip.in/license/concurrent-iterator/badge.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
 
 
-Iterators that consume and buffer generator values in a background
-thread/process.
+Classes to run producers (iterators) and consumers (coroutines) in a background thread/process.
 
 
 ## Implementations
