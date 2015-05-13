@@ -4,11 +4,12 @@ from __future__ import absolute_import, division, unicode_literals
 import logging
 import multiprocessing
 try:
-    from queue import Empty
+    from queue import Empty, Full
 except ImportError:
-    from Queue import Empty
+    from Queue import Empty, Full
 
-from concurrent_iterator import IProducer, StopIterationSentinel
+from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume
+from concurrent_iterator.utils import check_open
 
 
 class Producer(IProducer):
@@ -56,3 +57,40 @@ class Producer(IProducer):
         for item in iterator:
             queue.put(item)
         queue.put(StopIterationSentinel)
+
+
+class Consumer(IConsumer):
+    """Feeds the given coroutine in a separate process."""
+
+    def __init__(self, coroutine, maxsize=1):
+        self._coroutine = coroutine
+
+        self._closed = False
+        self._queue = multiprocessing.Queue(maxsize)
+        self._process = multiprocessing.Process(
+            target=self._run, args=(coroutine, self._queue))
+        self._process.daemon = True
+
+        self._process.start()
+
+    @check_open
+    def send(self, value, timeout=0):
+        try:
+            self._queue.put(value, block=(timeout != 0), timeout=timeout)
+        except Full:
+            raise WillNotConsume()
+
+    @check_open
+    def close(self):
+        self._closed = True
+        self._queue.put(StopIterationSentinel)
+        self._process.join()
+
+    @property
+    def closed(self):
+        return self._closed
+
+    @staticmethod
+    def _run(coroutine, queue):
+        for value in iter(queue.get, StopIterationSentinel):
+            coroutine.send(value)
