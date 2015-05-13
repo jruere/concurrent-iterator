@@ -8,16 +8,15 @@ try:
 except ImportError:
     from Queue import Queue, Full
 
-from concurrent_iterator import IProducer, IConsumer, WillNotConsume
+from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume
 from concurrent_iterator.utils import check_open
+
 
 class Producer(IProducer):
     """Uses a thread to produce and buffer values from the given iterable.
 
     This implementation is useful for IO bound consumers.
     """
-
-    _SENTINEL = object()
 
     def __init__(self, iterable, maxsize=100):
         iterator = iter(iterable)
@@ -31,7 +30,7 @@ class Producer(IProducer):
 
     def __next__(self):
         item = self._queue.get()
-        if item is Producer._SENTINEL:
+        if item is StopIterationSentinel:
             self._thread.join()
             raise StopIteration
         return item
@@ -43,13 +42,11 @@ class Producer(IProducer):
     def _run(iterator, queue):
         for item in iterator:
             queue.put(item)
-        queue.put(Producer._SENTINEL)  # Signal we are done.
+        queue.put(StopIterationSentinel)  # Signal we are done.
 
 
 class Consumer(IConsumer):
     """Feeds the given coroutine in a separate thread."""
-
-    _SENTINEL = object()
 
     def __init__(self, coroutine, maxsize=1):
         self._coroutine = coroutine
@@ -71,7 +68,7 @@ class Consumer(IConsumer):
 
     @check_open
     def close(self):
-        self._queue.put(Consumer._SENTINEL)
+        self._queue.put(StopIterationSentinel)
         self._thread.join()
         self._closed = True
 
@@ -81,5 +78,5 @@ class Consumer(IConsumer):
 
     @staticmethod
     def _run(coroutine, queue):
-        for value in iter(queue.get, Consumer._SENTINEL):
+        for value in iter(queue.get, StopIterationSentinel):
             coroutine.send(value)

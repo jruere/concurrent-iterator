@@ -6,6 +6,10 @@ from collections import Iterator
 __version__ = '0.2'
 
 
+class StopIterationSentinel(object):
+    """Sentinel to signal the end of data."""
+
+
 class IProducer(Iterator):
     """Interface for Producers.
 

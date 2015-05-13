@@ -9,6 +9,8 @@ try:
 except ImportError:
     from Queue import Empty
 
+from concurrent_iterator import StopIterationSentinel
+
 
 class Producer(collections.Iterator):
     """Uses a separate process to produce and buffer values from the given
@@ -21,8 +23,6 @@ class Producer(collections.Iterator):
 
     For logging to work properly, use multiprocessing-logging.
     """
-
-    _SENTINEL = b"STOP SENTINEL"
 
     def __init__(self, iterable, maxsize=100):
         self._iterator = iter(iterable)
@@ -40,7 +40,7 @@ class Producer(collections.Iterator):
         while self._queue or self._process.is_alive():
             try:
                 item = self._queue.get(timeout=0.01)
-                if item == Producer._SENTINEL:
+                if item == StopIterationSentinel:
                     self._process.join()
                     raise StopIteration
                 return item
@@ -56,4 +56,4 @@ class Producer(collections.Iterator):
     def _run(iterator, queue):
         for item in iterator:
             queue.put(item)
-        queue.put(Producer._SENTINEL)
+        queue.put(StopIterationSentinel)
