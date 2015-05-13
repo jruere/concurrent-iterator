@@ -29,9 +29,9 @@ setup(
     author="Javier Ruere",
     author_email="javier@ruere.com.ar",
     zip_safe=True,
-    packages=['concurrent_iterator', 'concurrent_iterator.tests'],
+    packages=['concurrent_iterator'],
     platforms=["POSIX"],
-    test_suite="concurrent_iterator.tests",
+    test_suite="tests",
     install_requires=['decorator'],
     tests_require=['mock'],
 )

@@ -5,7 +5,7 @@ import logging
 import unittest
 
 from concurrent_iterator.dummy import Producer, Consumer
-from concurrent_iterator.tests import AbstractProducerTest
+from tests import AbstractProducerTest
 
 import mock
 

@@ -3,7 +3,7 @@ import logging
 import unittest
 
 from concurrent_iterator.thread import Producer
-from concurrent_iterator.tests import AbstractProducerTest
+from tests import AbstractProducerTest
 
 
 logging.basicConfig(level=logging.WARNING)
