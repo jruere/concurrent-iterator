@@ -1,16 +1,19 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
 
+import abc
 from contextlib import closing
 import time
 
 import mock
 
 
-class AbstractProducerTest(object):
+class ProducerTestMixin(object):
+    __metaclass__ = abc.ABCMeta
 
+    @abc.abstractmethod
     def _create_producer(self, iterable):
-        raise NotImplementedError
+        pass
 
     def test_when_a_generator_is_spawned_then_it_generates_the_same_values(self):
         values = [1, 2, 3]
@@ -42,10 +45,12 @@ class AbstractProducerTest(object):
         self.assertAlmostEqual(0, tf, 1)
 
 
-class AbstractConsumerTest(object):
+class ConsumerTestMixin(object):
+    __metaclass__ = abc.ABCMeta
 
+    @abc.abstractmethod
     def _create_consumer(self, coroutine):
-        raise NotImplementedError
+        pass
 
     def test_when_a_value_is_sent_then_it_is_forwarded_to_the_coroutine(self):
         coroutine = mock.MagicMock()
