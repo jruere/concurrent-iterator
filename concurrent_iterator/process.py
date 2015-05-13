@@ -1,7 +1,6 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
 
-import collections
 import logging
 import multiprocessing
 try:
@@ -9,10 +8,10 @@ try:
 except ImportError:
     from Queue import Empty
 
-from concurrent_iterator import StopIterationSentinel
+from concurrent_iterator import IProducer, StopIterationSentinel
 
 
-class Producer(collections.Iterator):
+class Producer(IProducer):
     """Uses a separate process to produce and buffer values from the given
     iterable.
 
