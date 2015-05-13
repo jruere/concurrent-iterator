@@ -68,9 +68,9 @@ class Consumer(IConsumer):
 
     @check_open
     def close(self):
+        self._closed = True
         self._queue.put(StopIterationSentinel)
         self._thread.join()
-        self._closed = True
 
     @property
     def closed(self):
