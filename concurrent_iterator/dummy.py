@@ -36,6 +36,7 @@ class Consumer(IConsumer):
     @check_open
     def close(self):
         self._closed = True  # Nothing to do.
+        self._coroutine.close()
 
     @property
     def closed(self):

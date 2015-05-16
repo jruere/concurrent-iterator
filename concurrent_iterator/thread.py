@@ -80,3 +80,4 @@ class Consumer(IConsumer):
     def _run(coroutine, queue):
         for value in iter(queue.get, StopIterationSentinel):
             coroutine.send(value)
+        coroutine.close()

@@ -23,12 +23,19 @@ class ProcessConsumerTest(unittest.TestCase):
 
         def __init__(self):
             self.values = []
+            self.closed = False
 
         def send(self, value):
             self.values.append(value)
 
         def get_values(self):
             return list(self.values)
+
+        def close(self):
+            self.closed = True
+
+        def get_closed(self):
+            return self.closed
 
     def _create_consumer(self, coroutine):
         return Consumer(coroutine)
@@ -60,3 +67,9 @@ class ProcessConsumerTest(unittest.TestCase):
 
         self.assertRaises(ValueError, subject.close)
         self.assertEqual([], self.coroutine.get_values())
+
+    def test_when_closed_then_it_should_close_the_passed_coroutine(self):
+        subject = self._create_consumer(self.coroutine)
+        subject.close()
+
+        self.assertTrue(self.coroutine.get_closed())

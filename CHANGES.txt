@@ -1,5 +1,8 @@
 Revision history
 ----------------
+v0.2.1, 2015-05-15
+  * Calls close on the coroutine when the IConsumer is closed.
+
 v0.2.0, 2015-03-13
   * Renames ISpawnedIterator hierarchy to IProducer.
   * Creates the IConsumer hierarchy.

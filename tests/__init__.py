@@ -79,3 +79,11 @@ class ConsumerTestMixin(object):
 
         self.assertRaises(ValueError, subject.close)
         coroutine.assert_has_calls([])
+
+    def test_when_closed_then_it_should_close_the_passed_coroutine(self):
+        coroutine = mock.MagicMock()
+
+        subject = self._create_consumer(coroutine)
+        subject.close()
+
+        coroutine.close.assert_called_once_with()

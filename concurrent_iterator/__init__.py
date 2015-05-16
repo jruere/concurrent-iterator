@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 from collections import Iterator
 
 
-__version__ = '0.2'
+__version__ = '0.2.1'
 
 
 class StopIterationSentinel(object):
