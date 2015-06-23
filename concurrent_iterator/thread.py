@@ -8,7 +8,7 @@ try:
 except ImportError:
     from Queue import Queue, Full
 
-from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume
+from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume, ExceptionInUserIterable
 from concurrent_iterator.utils import check_open
 
 
@@ -46,6 +46,8 @@ class MultiProducer(IProducer):
                     for thread in self._threads:
                         thread.join()
                     raise StopIteration
+            elif isinstance(item, ExceptionInUserIterable):
+		raise item.exception
             else:
                 return item
 
@@ -54,10 +56,15 @@ class MultiProducer(IProducer):
 
     @staticmethod
     def _run(iterator, queue):
-        for item in iterator:
-            queue.put(item)
-        queue.put(StopIterationSentinel)  # Signal we are done.
-
+        while True:
+            try:
+                item = next(iterator)
+                queue.put(item)
+            except StopIteration:
+                queue.put(StopIterationSentinel)  # Signal we are done.
+                break
+            except Exception as e:
+                queue.put(ExceptionInUserIterable(e))
 
 class Producer(MultiProducer):
     """Uses a thread to produce and buffer values from the given iterable.

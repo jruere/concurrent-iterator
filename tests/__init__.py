@@ -44,6 +44,17 @@ class ProducerTestMixin(object):
         self.assertEqual(list(range(count)), results)
         self.assertAlmostEqual(0, tf, 1)
 
+    def test_when_iterable_throws(self):
+        def throwing_generator():
+            yield
+            raise RuntimeError
+
+        iterable = throwing_generator()
+        subject = self._create_producer(iterable)
+
+        with self.assertRaises(RuntimeError):
+            list(subject)
+
 
 class ConsumerTestMixin(object):
     __metaclass__ = abc.ABCMeta

@@ -8,7 +8,7 @@ try:
 except ImportError:
     from Queue import Empty, Full
 
-from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume
+from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume, ExceptionInUserIterable
 from concurrent_iterator.utils import check_open
 
 
@@ -43,6 +43,8 @@ class Producer(IProducer):
                 if item == StopIterationSentinel:
                     self._process.join()
                     raise StopIteration
+                elif isinstance(item, ExceptionInUserIterable):
+                    raise item.exception
                 return item
             except Empty:
                 pass
@@ -54,9 +56,16 @@ class Producer(IProducer):
 
     @staticmethod
     def _run(iterator, queue):
-        for item in iterator:
-            queue.put(item)
-        queue.put(StopIterationSentinel)
+        while True:
+            try:
+                item = next(iterator)
+                queue.put(item)
+            except StopIteration:
+                queue.put(StopIterationSentinel)  # Signal we are done.
+                break
+            except Exception as e:
+                queue.put(ExceptionInUserIterable(e))
+
 
 
 class Consumer(IConsumer):
