@@ -4,11 +4,17 @@ from __future__ import absolute_import, division, unicode_literals
 import logging
 import multiprocessing
 try:
-    from queue import Empty, Full
+    from queue import Full
 except ImportError:
-    from Queue import Empty, Full
+    from Queue import Full
 
-from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume, ExceptionInUserIterable
+from concurrent_iterator import (
+    ExceptionInUserIterable,
+    IProducer,
+    IConsumer,
+    StopIterationSentinel,
+    WillNotConsume,
+)
 from concurrent_iterator.utils import check_open
 
 
@@ -37,17 +43,23 @@ class Producer(IProducer):
         self._process.start()
 
     def __next__(self):
-        while self._queue or self._process.is_alive():
-            try:
-                item = self._queue.get(timeout=0.01)
-                if item == StopIterationSentinel:
-                    self._process.join()
-                    raise StopIteration
-                elif isinstance(item, ExceptionInUserIterable):
-                    raise item.exception
+        while self._queue:
+            item = self._queue.get()
+            if item == StopIterationSentinel:
+                self._process.join()
+
+                self._queue.close()
+                self._queue = None
+            elif isinstance(item, ExceptionInUserIterable):
+                self._process.terminate()
+                self._process.join()
+
+                self._queue.close()
+                self._queue = None
+
+                raise item.exception
+            else:
                 return item
-            except Empty:
-                pass
         self._log.debug("Producer is exhausted.")
         raise StopIteration
 
@@ -66,6 +78,8 @@ class Producer(IProducer):
             except Exception as e:
                 queue.put(ExceptionInUserIterable(e))
 
+                # Per PEP 255, this terminates the iterable.
+                break
 
 
 class Consumer(IConsumer):

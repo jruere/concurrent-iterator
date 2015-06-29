@@ -44,16 +44,19 @@ class ProducerTestMixin(object):
         self.assertEqual(list(range(count)), results)
         self.assertAlmostEqual(0, tf, 1)
 
-    def test_when_iterable_throws(self):
+    def test_when_a_producer_raises_an_exception_then_it_is_sent_to_the_main_thread_and_the_producer_terminates(self):
         def throwing_generator():
-            yield
-            raise RuntimeError
+            yield 1
+            raise AssertionError("Test exception")
+            yield 2
 
         iterable = throwing_generator()
         subject = self._create_producer(iterable)
 
-        with self.assertRaises(RuntimeError):
-            list(subject)
+        self.assertEqual(1, next(subject))
+        self.assertRaises(AssertionError, next, subject)
+        self.assertRaises(StopIteration, next, subject)
+        self.assertRaises(StopIteration, next, subject)
 
 
 class ConsumerTestMixin(object):

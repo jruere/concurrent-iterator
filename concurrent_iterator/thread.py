@@ -8,7 +8,13 @@ try:
 except ImportError:
     from Queue import Queue, Full
 
-from concurrent_iterator import IProducer, IConsumer, StopIterationSentinel, WillNotConsume, ExceptionInUserIterable
+from concurrent_iterator import (
+    ExceptionInUserIterable,
+    IProducer,
+    IConsumer,
+    StopIterationSentinel,
+    WillNotConsume,
+)
 from concurrent_iterator.utils import check_open
 
 
@@ -17,6 +23,11 @@ class MultiProducer(IProducer):
 
     This is different from merging multiple independent producers in that
     `maxsize` limit applies to the total output, not individual producers.
+
+    Exceptions terminate a generator (PEP 255) but in this case we have multiple
+    generators. The way this is resolved is that the first generator to raise an
+    exception terminates the entire MultiProducer.
+    The rationale for this is to prevent hiding exceptions.
 
     This implementation is useful for IO bound consumers.
     """
@@ -38,6 +49,10 @@ class MultiProducer(IProducer):
             self._threads.append(thread)
 
     def __next__(self):
+        if not self._active_threads:
+            # This producer is exhausted.
+            raise StopIteration
+
         while True:
             item = self._queue.get()
             if item is StopIterationSentinel:
@@ -45,9 +60,13 @@ class MultiProducer(IProducer):
                 if not self._active_threads:
                     for thread in self._threads:
                         thread.join()
+
                     raise StopIteration
             elif isinstance(item, ExceptionInUserIterable):
-		raise item.exception
+                # Any generator raising an exception terminates the entire
+                # MultiProducer as generators don't continue after an exception.
+                self._active_threads = 0
+                raise item.exception
             else:
                 return item
 
@@ -65,6 +84,10 @@ class MultiProducer(IProducer):
                 break
             except Exception as e:
                 queue.put(ExceptionInUserIterable(e))
+
+                # Per PEP 255, this terminates the iterable.
+                break
+
 
 class Producer(MultiProducer):
     """Uses a thread to produce and buffer values from the given iterable.
