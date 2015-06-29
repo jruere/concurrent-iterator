@@ -8,7 +8,10 @@ from concurrent_iterator.utils import check_open
 class Producer(IProducer):
     """Dummy implementation that doesn't use concurrency."""
 
-    def __init__(self, iterable):
+    def __init__(self, iterable, maxsize=None):
+        """In this implementation, maxsize is included to ease replacing
+        implementations but it's ignored.
+        """
         self._iterator = iter(iterable)
 
     def __next__(self):
