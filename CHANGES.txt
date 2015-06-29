@@ -1,5 +1,9 @@
 Revision history
 ----------------
+v0.2.3, 2015-06-29
+  * Propagates exceptions to the main thread/process. Thanks Dmitry Odzerikho!
+  * Properly terminate the Producer after an exception.
+
 v0.2.2, 2015-05-18
   * Adds MultiProducer to the thead implementation.
 
