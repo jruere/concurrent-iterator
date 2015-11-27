@@ -36,7 +36,7 @@ Basic example:
     
     ...
     
-    items = Producer(slow_generator, max_size=5)
+    items = Producer(slow_generator, maxsize=5)
     
     for item in items:
         [Do some time consuming task]
