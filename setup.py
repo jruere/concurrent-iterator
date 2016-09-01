@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='concurrent-iterator',
-    version=0.2.4,
+    version='0.2.4',
     description='Classes to run producers (iterators) and consumers'
                 ' (coroutines) in a background thread/process.',
     url='https://github.com/jruere/concurrent-iterator',
