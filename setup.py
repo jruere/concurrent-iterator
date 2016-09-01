@@ -24,7 +24,7 @@ setup(
         'Programming Language :: Python :: Implementation :: PyPy',
         'Operating System :: POSIX',
     ],
-    keywords="concurrency parallelism iterator iterable",
+    keywords="concurrency parallelism iterator iterable pipeline",
     author="Javier Ruere",
     author_email="javier@ruere.com.ar",
     zip_safe=True,
