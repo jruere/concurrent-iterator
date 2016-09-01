@@ -2,12 +2,10 @@
 
 from setuptools import setup
 
-import concurrent_iterator
-
 
 setup(
     name='concurrent-iterator',
-    version=concurrent_iterator.__version__,
+    version=0.2.4,
     description='Classes to run producers (iterators) and consumers'
                 ' (coroutines) in a background thread/process.',
     url='https://github.com/jruere/concurrent-iterator',
@@ -21,6 +19,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Operating System :: POSIX',

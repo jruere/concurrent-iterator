@@ -3,9 +3,6 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 from collections import Iterator
 
 
-__version__ = '0.2.3'
-
-
 class StopIterationSentinel(object):
     """Sentinel to signal the end of data."""
 
