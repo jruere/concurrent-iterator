@@ -1,1 +1,2 @@
+-r requirements.txt
 mock==1.0.1
