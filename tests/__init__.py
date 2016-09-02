@@ -35,7 +35,7 @@ class ProducerTestMixin(object):
 
         subject = self._create_producer(iter(gen(count, delay)))
 
-        time.sleep(count * delay)  # Give background thread time to consume.
+        time.sleep(0.2 + count * delay)  # Give background thread time to consume.
 
         t0 = time.time()
         results = list(subject)
