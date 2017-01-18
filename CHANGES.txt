@@ -1,5 +1,10 @@
 Revision history
 ----------------
+v0.2.5, 2017-01-18
+  * Adds chunksize to process.Producer to improve performance.
+  * Declares support for Python 3.6.
+  * Removes Pypy3 from tox as it fails.
+
 v0.2.4, 2015-06-29
   * Adds maxsize to dummy.Producer to make implementations easily swappable.
 

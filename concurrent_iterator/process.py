@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8
 from __future__ import absolute_import, division, unicode_literals
 
+import itertools
 import logging
 import multiprocessing
 try:
@@ -30,56 +31,68 @@ class Producer(IProducer):
     For logging to work properly, use multiprocessing-logging.
     """
 
-    def __init__(self, iterable, maxsize=100):
+    def __init__(self, iterable, maxsize=100, chunksize=1):
+        assert chunksize > 0
+        assert maxsize >= chunksize
+
         self._iterator = iter(iterable)
 
-        self._queue = multiprocessing.Queue(maxsize)
+        self._queue = multiprocessing.Queue(maxsize // chunksize)
         self._process = multiprocessing.Process(
-            target=Producer._run, args=(self._iterator, self._queue))
+            target=Producer._run, args=(self._iterator, self._queue, chunksize))
         self._process.daemon = True
+        self._current_chunk = None
         self._log = logging.getLogger(__name__ + '.' + type(self).__name__)
 
         self._log.info("Starting process.")
         self._process.start()
 
     def __next__(self):
-        while self._queue:
-            item = self._queue.get()
-            if item == StopIterationSentinel:
+        if self._current_chunk:
+            pass
+        elif not self._queue:
+            self._log.debug("Producer is exhausted.")
+            raise StopIteration
+        else:
+            chunk = self._queue.get()
+            if chunk == StopIterationSentinel:
                 self._process.join()
 
                 self._queue.close()
                 self._queue = None
-            elif isinstance(item, ExceptionInUserIterable):
+                raise StopIteration
+            elif isinstance(chunk, ExceptionInUserIterable):
                 self._process.terminate()
                 self._process.join()
 
                 self._queue.close()
                 self._queue = None
 
-                raise item.exception
+                raise chunk.exception
             else:
-                return item
-        self._log.debug("Producer is exhausted.")
-        raise StopIteration
+                assert chunk
+                chunk.reverse()  # To consume it from the end.
+                self._current_chunk = chunk
+
+        return self._current_chunk.pop()
 
     def next(self):
         return self.__next__()
 
     @staticmethod
-    def _run(iterator, queue):
-        while True:
-            try:
-                item = next(iterator)
-                queue.put(item)
-            except StopIteration:
-                queue.put(StopIterationSentinel)  # Signal we are done.
-                break
-            except Exception as e:
-                queue.put(ExceptionInUserIterable(e))
+    def _run(iterator, queue, chunksize):
+        try:
+            while True:
+                chunk = list(itertools.islice(iterator, chunksize))
+                if not chunk:
+                    queue.put(StopIterationSentinel)  # Signal we are done.
+                    break
+                else:
+                    queue.put(chunk)
+        except Exception as e:
+            queue.put(ExceptionInUserIterable(e))
 
-                # Per PEP 255, this terminates the iterable.
-                break
+            # Per PEP 255, this terminates the iterable.
 
 
 class Consumer(IConsumer):
