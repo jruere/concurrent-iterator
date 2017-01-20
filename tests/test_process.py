@@ -11,10 +11,16 @@ from tests import ProducerTestMixin
 logging.basicConfig(level=logging.DEBUG)
 
 
-class ProcessProducerTest(unittest.TestCase, ProducerTestMixin):
+class ProcessProducerTestChunk1(unittest.TestCase, ProducerTestMixin):
 
     def _create_producer(self, iterable):
-        return Producer(iterable)
+        return Producer(iterable, chunksize=1)
+
+
+class ProcessProducerTestChunk2(unittest.TestCase, ProducerTestMixin):
+
+    def _create_producer(self, iterable):
+        return Producer(iterable, chunksize=2)
 
 
 class ProcessConsumerTest(unittest.TestCase):

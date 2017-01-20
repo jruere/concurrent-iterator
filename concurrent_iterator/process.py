@@ -39,7 +39,9 @@ class Producer(IProducer):
 
         self._queue = multiprocessing.Queue(maxsize // chunksize)
         self._process = multiprocessing.Process(
-            target=Producer._run, args=(self._iterator, self._queue, chunksize))
+            target=Producer._run,
+            args=(self._iterator, self._queue, chunksize),
+        )
         self._process.daemon = True
         self._current_chunk = None
         self._log = logging.getLogger(__name__ + '.' + type(self).__name__)
@@ -61,36 +63,43 @@ class Producer(IProducer):
                 self._queue.close()
                 self._queue = None
                 raise StopIteration
-            elif isinstance(chunk, ExceptionInUserIterable):
-                self._process.terminate()
-                self._process.join()
-
-                self._queue.close()
-                self._queue = None
-
-                raise chunk.exception
             else:
                 assert chunk
                 chunk.reverse()  # To consume it from the end.
                 self._current_chunk = chunk
 
-        return self._current_chunk.pop()
+        item = self._current_chunk.pop()
+        if isinstance(item, ExceptionInUserIterable):
+            self._process.join()
+
+            self._queue.close()
+            self._queue = None
+
+            raise item.exception
+
+        return item
 
     def next(self):
         return self.__next__()
 
     @staticmethod
     def _run(iterator, queue, chunksize):
+        chunk = []
         try:
             while True:
-                chunk = list(itertools.islice(iterator, chunksize))
+                chunk = []
+                for item in itertools.islice(iterator, chunksize):
+                    chunk.append(item)
                 if not chunk:
                     queue.put(StopIterationSentinel)  # Signal we are done.
                     break
                 else:
                     queue.put(chunk)
         except Exception as e:
-            queue.put(ExceptionInUserIterable(e))
+            chunk.append(ExceptionInUserIterable(e))
+            queue.put(chunk)
+            queue.close()
+            queue.join_thread()
 
             # Per PEP 255, this terminates the iterable.
 

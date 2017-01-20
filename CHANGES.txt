@@ -1,5 +1,8 @@
 Revision history
 ----------------
+v0.2.6, 2017-01-20
+  * Fixes process.Producer behavior to be the same with different chunk sizes.
+
 v0.2.5, 2017-01-18
   * Adds chunksize to process.Producer to improve performance.
   * Declares support for Python 3.6.
