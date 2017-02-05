@@ -8,6 +8,8 @@ try:
 except ImportError:
     from Queue import Queue, Full
 
+from .thread_ring_queue import RingQueue
+
 from concurrent_iterator import (
     ExceptionInUserIterable,
     IProducer,
@@ -24,6 +26,13 @@ class MultiProducer(IProducer):
     This is different from merging multiple independent producers in that
     `maxsize` limit applies to the total output, not individual producers.
 
+    The 'policy' parameter specify the buffering policy of the producer.
+    Possible values are 'linear' and 'ring'. If 'linear' is selected,
+    items from different producers are queued into a single linear queue; as a
+    consequence, the producer stops consumption of new items from the threads
+    once the queue gets full. In the case of 'ring' policy, the oldest items in
+    the queue will be overwritten by the new ones
+
     Exceptions terminate a generator (PEP 255) but in this case we have multiple
     generators. The way this is resolved is that the first generator to raise an
     exception terminates the entire MultiProducer.
@@ -32,8 +41,14 @@ class MultiProducer(IProducer):
     This implementation is useful for IO bound consumers.
     """
 
-    def __init__(self, iterables, maxsize=100):
-        self._queue = Queue(maxsize)
+    def __init__(self, iterables, maxsize=100, policy='linear'):
+        if policy == 'linear':
+            self._queue = Queue(maxsize)
+        elif policy == 'ring':
+            self._queue = RingQueue(maxsize)
+        else:
+            raise ValueError("Unknown policy")
+
         self._threads = []
 
         self._spawn_workers(iterables)
@@ -95,8 +110,8 @@ class Producer(MultiProducer):
     This implementation is useful for IO bound consumers.
     """
 
-    def __init__(self, iterable, maxsize=100):
-        super(Producer, self).__init__([iterable], maxsize)
+    def __init__(self, iterable, maxsize=100, policy='linear'):
+        super(Producer, self).__init__([iterable], maxsize, policy)
 
 
 class Consumer(IConsumer):
