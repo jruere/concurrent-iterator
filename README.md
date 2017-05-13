@@ -5,8 +5,14 @@
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/concurrent-iterator.svg)](https://pypi.python.org/pypi/multiprocessing-logging/)
 [![License](https://img.shields.io/pypi/l/concurrent-iterator.svg)](https://pypi.python.org/pypi/multiprocessing-logging/)
 
+## Intro
+
 Classes to run producers (iterators) and consumers (coroutines) in a background thread/process.
 
+There are many libraries to create pipelines with stages running in separate processes, a nice
+one is [parallelpipe](https://pypi.python.org/pypi/parallelpipe), but this library does something
+different. It will lift the entire pipeline up to the point of the Producer into a separate process 
+or thread. It's a more coarse library but easier to integrate since things keep looking as normal generators.
 
 ## Implementations
 
@@ -24,7 +30,6 @@ There are currently 3 implementations:
 It has the complications of dealing with processes (different memory spaces,
 logging, etc).
 For logging, module [`multiprocessing-logging`](https://github.com/jruere/multiprocessing-logging) can be used.
-
 
 ## Usage
 
