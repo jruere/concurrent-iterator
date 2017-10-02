@@ -12,6 +12,7 @@ python:
   - pypy3
 
 before_install:
+  - pip install --upgrade pip setuptools
   - pip install nose2 coverage
 
 install:
@@ -23,7 +24,7 @@ before_script:
 
 script:
   - nose2
-  - 'which python && coverage run --branch -m unittest'
+  - 'which python && coverage run --branch -m unittest discover'
   - 'which python && coverage xml -o shippable/codecoverage/coverage.xml'
 
 #after_success:
