@@ -11,16 +11,25 @@ python:
   - pypy
   - pypy3
 
-build:
-  ci:
-    - pip install -r dev-requirements.txt
+before_install:
+  - pip install nose2 coverage
 
-    # Create folders for test and code coverage
-    - mkdir -p shippable/testresults
-    - mkdir -p shippable/codecoverage
+install:
+  - pip install -r requirements.txt
 
-    # Run test and code coverage and output results to the right folder
-    - pip install nose coverage
-    - nosetests --with-xunit --xunit-file=shippable/testresults/nosetests.xml
-    - which python && coverage run --branch --source concurrent_iterator -m unittest discover
-    - which python && coverage xml -o shippable/codecoverage/coverage.xml
+before_script:
+  - mkdir -p shippable/testresults
+  - mkdir -p shippable/codecoverage
+
+script:
+  - nose2
+  - 'which python && coverage run --branch -m unittest'
+  - 'which python && coverage xml -o shippable/codecoverage/coverage.xml'
+
+#after_success:
+  # Use the following for GitHub-based deployments:
+  # - aws deploy create-deployment --application-name $CD_APP_NAME --github-location repository=$REPO_NAME,commitId=$COMMIT --deployment-group-name $CD_DEPLOYMENT_GROUP | python scripts/wait_for_completion.py
+
+  # This method uses S3 bucket to upload the build artifacts
+  # - aws deploy push --application-name $CD_APP_NAME --s3-location s3://$CD_BUCKET/$CD_KEY --ignore-hidden-files
+  # - aws deploy create-deployment --application-name $CD_APP_NAME --s3-location bucket=$CD_BUCKET,key=$CD_KEY,bundleType=zip --deployment-group-name $CD_DEPLOYMENT_GROUP | python scripts/wait_for_completion.py
