@@ -87,7 +87,8 @@ class Producer(IProducer):
         chunk = []
         try:
             while True:
-                chunk = []
+                # Items must be added one at a time to avoid losing items
+                # before an exception.
                 for item in itertools.islice(iterator, chunksize):
                     chunk.append(item)
                 if not chunk:
@@ -95,6 +96,7 @@ class Producer(IProducer):
                     break
                 else:
                     queue.put(chunk)
+                chunk = []
         except Exception as e:
             chunk.append(ExceptionInUserIterable(e))
             queue.put(chunk)
