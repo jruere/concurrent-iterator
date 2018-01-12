@@ -39,7 +39,7 @@ class Producer(IProducer):
 
         self._queue = multiprocessing.Queue(maxsize // chunksize)
         self._process = multiprocessing.Process(
-            target=Producer._run,
+            target=self._run,
             args=(self._iterator, self._queue, chunksize),
         )
         self._process.daemon = True
@@ -82,8 +82,7 @@ class Producer(IProducer):
     def next(self):
         return self.__next__()
 
-    @staticmethod
-    def _run(iterator, queue, chunksize):
+    def _run(self, iterator, queue, chunksize):
         chunk = []
         try:
             while True:
@@ -98,6 +97,8 @@ class Producer(IProducer):
                     queue.put(chunk)
                 chunk = []
         except Exception as e:
+            self._log.exception('Exception on iterator.')
+
             chunk.append(ExceptionInUserIterable(e))
             queue.put(chunk)
             queue.close()
