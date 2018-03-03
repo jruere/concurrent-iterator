@@ -2,8 +2,8 @@
 
 [![Run Status](https://api.shippable.com/projects/57c8a38983e2680f00fe6dc4/badge?branch=master)](https://app.shippable.com/projects/57c8a38983e2680f00fe6dc4)
 [![Coverage Badge](https://api.shippable.com/projects/57c8a38983e2680f00fe6dc4/coverageBadge?branch=master)](https://app.shippable.com/projects/57c8a38983e2680f00fe6dc4)
-[![Supported Python versions](https://img.shields.io/pypi/pyversions/concurrent-iterator.svg)](https://pypi.python.org/pypi/multiprocessing-logging/)
-[![License](https://img.shields.io/pypi/l/concurrent-iterator.svg)](https://pypi.python.org/pypi/multiprocessing-logging/)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/concurrent-iterator.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
+[![License](https://img.shields.io/pypi/l/concurrent-iterator.svg)](https://pypi.python.org/pypi/concurrent-iterator/)
 
 ## Intro
 
