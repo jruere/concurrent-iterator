@@ -1,16 +1,22 @@
 # vim: set fileencoding=utf-8
 from abc import ABCMeta, abstractmethod, abstractproperty
-from collections import Iterator
+
+try:
+    from collections.abc import Iterator
+except ImportError:
+    from collections import Iterator
 
 
 class StopIterationSentinel(object):
     """Sentinel to signal the end of data."""
+
 
 class ExceptionInUserIterable(object):
     """User-provided iterable raises an exception."""
 
     def __init__(self, exception):
         self.exception = exception
+
 
 class IProducer(Iterator):
     """Interface for Producers.
