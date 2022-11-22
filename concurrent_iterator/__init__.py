@@ -10,11 +10,13 @@ except ImportError:
 class StopIterationSentinel(object):
     """Sentinel to signal the end of data."""
 
+
 class ExceptionInUserIterable(object):
     """User-provided iterable raises an exception."""
 
     def __init__(self, exception):
         self.exception = exception
+
 
 class IProducer(Iterator):
     """Interface for Producers.
