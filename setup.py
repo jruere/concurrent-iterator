@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='concurrent-iterator',
-    version='0.2.6',
+    version='0.3.0',
     description='Classes to run producers (iterators) and consumers'
                 ' (coroutines) in a background thread/process.',
     url='https://github.com/jruere/concurrent-iterator',
@@ -17,10 +17,11 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Operating System :: POSIX',
