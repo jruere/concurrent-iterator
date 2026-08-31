@@ -2,9 +2,12 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import abc
+import logging
 import time
 from contextlib import closing
 from unittest import mock
+
+logging.basicConfig(level=logging.CRITICAL)
 
 
 class ProducerTestMixin(object):
