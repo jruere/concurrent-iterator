@@ -2,10 +2,9 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import abc
-from contextlib import closing
 import time
-
-import mock
+from contextlib import closing
+from unittest import mock
 
 
 class ProducerTestMixin(object):
