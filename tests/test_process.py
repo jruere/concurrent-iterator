@@ -1,12 +1,11 @@
 # vim: set fileencoding=utf-8
-from contextlib import closing
 import logging
 import multiprocessing.managers
 import unittest
+from contextlib import closing
 
-from concurrent_iterator.process import Producer, Consumer
+from concurrent_iterator.process import Consumer, Producer
 from tests import ProducerTestMixin
-
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -48,7 +47,7 @@ class ProcessConsumerTest(unittest.TestCase):
 
     def setUp(self):
         manager = multiprocessing.managers.BaseManager()
-        manager.register('Coroutine', ProcessConsumerTest.Coroutine)
+        manager.register("Coroutine", ProcessConsumerTest.Coroutine)
         manager.start()
         self.coroutine = manager.Coroutine()
 

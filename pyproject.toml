@@ -1,0 +1,77 @@
+[project]
+name = "concurrent-iterator"
+version = "0.3.0"
+description = "Classes to run producers (iterators) and consumers (coroutines) in a background thread/process."
+readme = "README.md"
+license = { text = "LGPLv3" }
+requires-python = ">=3.9"
+keywords = ["concurrency", "parallelism", "iterator", "iterable", "pipeline"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Operating System :: POSIX",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+preview = true
+
+[tool.isort]
+skip_gitignore = true
+balanced_wrapping = true
+include_trailing_comma = true
+py_version = 314
+line_length = 100
+multi_line_output = 3
+use_parentheses = true
+order_by_type = false
+
+[tool.coverage.run]
+source = ["concurrent_iterator"]
+
+[tool.mypy]
+python_version = '3.10'
+
+files = "."
+exclude = "build"
+
+# Display the codes needed for # type: ignore[code] annotations.
+show_error_codes = true
+
+# Options to make the checking stricter.
+# Python 2 does not allow for annotations.
+#check_untyped_defs = true
+#disallow_untyped_defs = true
+#disallow_any_generics = true
+warn_no_return = true
+strict_optional = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# We use a lot of third-party libraries we don't have stubs for, as
+# well as a handful of our own modules that we haven't told mypy how
+# to find.  Ignore them.  (For some details, see:
+# `git log -p -S ignore_missing_imports mypy.ini`.)
+#
+# This doesn't get in the way of using the stubs we *do* have.
+ignore_missing_imports = true
+
+# Warn of unreachable or redundant code.
+warn_unreachable = true
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

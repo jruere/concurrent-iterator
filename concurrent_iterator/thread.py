@@ -2,16 +2,12 @@
 from __future__ import absolute_import, division, unicode_literals
 
 import threading
-try:
-    # Python 3.
-    from queue import Queue, Full
-except ImportError:
-    from Queue import Queue, Full
+from queue import Full, Queue
 
 from concurrent_iterator import (
     ExceptionInUserIterable,
-    IProducer,
     IConsumer,
+    IProducer,
     StopIterationSentinel,
     WillNotConsume,
 )
@@ -41,8 +37,7 @@ class MultiProducer(IProducer):
 
     def _spawn_workers(self, iterables):
         for iterable in iterables:
-            thread = threading.Thread(
-                target=self._run, args=(iter(iterable), self._queue))
+            thread = threading.Thread(target=self._run, args=(iter(iterable), self._queue))
             thread.daemon = True
             thread.start()
 
@@ -107,8 +102,7 @@ class Consumer(IConsumer):
 
         self._closed = False
         self._queue = Queue(maxsize)
-        self._thread = threading.Thread(
-            target=self._run, args=(coroutine, self._queue))
+        self._thread = threading.Thread(target=self._run, args=(coroutine, self._queue))
         self._thread.daemon = True
 
         self._thread.start()

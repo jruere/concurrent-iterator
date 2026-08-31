@@ -1,10 +1,6 @@
 # vim: set fileencoding=utf-8
-from abc import ABCMeta, abstractmethod, abstractproperty
-
-try:
-    from collections.abc import Iterator
-except ImportError:
-    from collections import Iterator
+from abc import ABCMeta, abstractmethod
+from collections.abc import Iterator
 
 
 class StopIterationSentinel(object):
@@ -60,6 +56,7 @@ class IConsumer(object):
     def close(self):
         """Waits for the IConsumer to finish up and be destroyed."""
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def closed(self):
         """Whether the consumer has been closed."""

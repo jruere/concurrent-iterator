@@ -23,7 +23,9 @@ class ProducerTestMixin(object):
 
         self.assertEqual(values, results)
 
-    def test_when_generating_element_takes_time_then_it_should_be_faster_than_sequential(self):
+    def test_when_generating_element_takes_time_then_it_should_be_faster_than_sequential(
+        self,
+    ):
         def gen(count, delay):
             for i in range(count):
                 time.sleep(delay)
@@ -43,7 +45,9 @@ class ProducerTestMixin(object):
         self.assertEqual(list(range(count)), results)
         self.assertAlmostEqual(0, tf, 1)
 
-    def test_when_a_producer_raises_an_exception_then_it_is_sent_to_the_main_thread_and_the_producer_terminates(self):
+    def test_when_a_producer_raises_an_exception_then_it_is_sent_to_the_main_thread_and_the_producer_terminates(
+        self,
+    ):
         def throwing_generator():
             yield 1
             raise AssertionError("Test exception")

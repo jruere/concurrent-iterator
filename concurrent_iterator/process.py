@@ -4,15 +4,12 @@ from __future__ import absolute_import, division, unicode_literals
 import itertools
 import logging
 import multiprocessing
-try:
-    from queue import Full
-except ImportError:
-    from Queue import Full
+from queue import Full
 
 from concurrent_iterator import (
     ExceptionInUserIterable,
-    IProducer,
     IConsumer,
+    IProducer,
     StopIterationSentinel,
     WillNotConsume,
 )
@@ -44,7 +41,7 @@ class Producer(IProducer):
         )
         self._process.daemon = True
         self._current_chunk = None
-        self._log = logging.getLogger(__name__ + '.' + type(self).__name__)
+        self._log = logging.getLogger(__name__ + "." + type(self).__name__)
 
         self._log.info("Starting process.")
         self._process.start()
@@ -97,7 +94,7 @@ class Producer(IProducer):
                     queue.put(chunk)
                 chunk = []
         except Exception as e:
-            self._log.exception('Exception on iterator.')
+            self._log.exception("Exception on iterator.")
 
             chunk.append(ExceptionInUserIterable(e))
             queue.put(chunk)
@@ -115,8 +112,7 @@ class Consumer(IConsumer):
 
         self._closed = False
         self._queue = multiprocessing.Queue(maxsize)
-        self._process = multiprocessing.Process(
-            target=self._run, args=(coroutine, self._queue))
+        self._process = multiprocessing.Process(target=self._run, args=(coroutine, self._queue))
         self._process.daemon = True
 
         self._process.start()

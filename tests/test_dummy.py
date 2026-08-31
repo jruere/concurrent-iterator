@@ -3,9 +3,8 @@
 import logging
 import unittest
 
-from concurrent_iterator.dummy import Producer, Consumer
-from tests import ProducerTestMixin, ConsumerTestMixin
-
+from concurrent_iterator.dummy import Consumer, Producer
+from tests import ConsumerTestMixin, ProducerTestMixin
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -15,7 +14,9 @@ class DummyProducerTest(unittest.TestCase, ProducerTestMixin):
     def _create_producer(self, iterable):
         return Producer(iterable)
 
-    def test_when_generating_element_takes_time_then_it_should_be_faster_than_sequential(self):
+    def test_when_generating_element_takes_time_then_it_should_be_faster_than_sequential(
+        self,
+    ):
         pass  # Disabled since the dummy implementation is not concurrent.
 
 
