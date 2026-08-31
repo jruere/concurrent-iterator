@@ -29,6 +29,17 @@ It has the complications of dealing with processes (different memory spaces,
 logging, etc).
 For logging, module [`multiprocessing-logging`](https://github.com/jruere/multiprocessing-logging) can be used.
 
+> **Limitations:** `process.Producer`/`process.Consumer` with generators,
+> coroutines and other unpicklable objects require the `fork` start method.
+> Python 3.14 changes the default on Linux from `fork` to `forkserver`,
+> and `spawn`/`forkserver` cannot pickle generators (`TypeError: cannot
+> pickle 'generator' object`). In those cases `process.Producer` now raises
+> `RuntimeError` with a clear message. Use `thread.Producer`/`thread.Consumer`,
+> a picklable iterable (e.g. `iter([1,2,3])`), or force `fork` via
+> `multiprocessing.set_start_method('fork', force=True)` or
+> `multiprocessing.get_context('fork').Process`/`Queue` where `fork` is
+> available (Linux).
+
 ## Usage
 
 Basic example:

@@ -4,6 +4,7 @@ from __future__ import absolute_import, division, unicode_literals
 import itertools
 import logging
 import multiprocessing
+import pickle
 from queue import Full
 
 from concurrent_iterator import (
@@ -44,7 +45,21 @@ class Producer(IProducer):
         self._log = logging.getLogger(__name__ + "." + type(self).__name__)
 
         self._log.info("Starting process.")
-        self._process.start()
+        try:
+            self._process.start()
+        except (TypeError, pickle.PicklingError) as e:
+            if multiprocessing.get_start_method() != "fork":
+                raise RuntimeError(
+                    "process.Producer with generators and other unpicklable "
+                    "iterables requires start method 'fork', got "
+                    "'{}' (Python 3.14 defaults to 'forkserver'). Use "
+                    "thread.Producer, a picklable iterable, or "
+                    "multiprocessing.set_start_method('fork', force=True) / "
+                    "multiprocessing.get_context('fork').".format(
+                        multiprocessing.get_start_method()
+                    )
+                ) from e
+            raise
 
     def __next__(self):
         if self._current_chunk:
@@ -115,7 +130,20 @@ class Consumer(IConsumer):
         self._process = multiprocessing.Process(target=self._run, args=(coroutine, self._queue))
         self._process.daemon = True
 
-        self._process.start()
+        try:
+            self._process.start()
+        except (TypeError, pickle.PicklingError) as e:
+            if multiprocessing.get_start_method() != "fork":
+                raise RuntimeError(
+                    "process.Consumer with unpicklable coroutines requires "
+                    "start method 'fork', got '{}' (Python 3.14 defaults to "
+                    "'forkserver'). Use thread.Consumer or "
+                    "multiprocessing.set_start_method('fork', force=True) / "
+                    "multiprocessing.get_context('fork').".format(
+                        multiprocessing.get_start_method()
+                    )
+                ) from e
+            raise
 
     @check_open
     def send(self, value, timeout=0):

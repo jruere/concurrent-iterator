@@ -78,3 +78,53 @@ class ProcessConsumerTest(unittest.TestCase):
         subject.close()
 
         self.assertTrue(self.coroutine.get_closed())
+
+
+def gen(count=3):
+    for i in range(count):
+        yield i
+
+
+def throwing_gen():
+    yield 1
+    raise AssertionError("Test exception")
+
+
+class ProcessStartMethodTest(unittest.TestCase):
+    def setUp(self):
+        self._orig_start_method = multiprocessing.get_start_method()
+
+    def tearDown(self):
+        try:
+            multiprocessing.set_start_method(self._orig_start_method, force=True)
+        except Exception:
+            pass
+
+    def test_producer_with_generator_under_fork(self):
+        multiprocessing.set_start_method("fork", force=True)
+        p = Producer(gen(), chunksize=1)
+        self.assertEqual([0, 1, 2], list(p))
+
+    def test_producer_with_throwing_generator_under_fork(self):
+        multiprocessing.set_start_method("fork", force=True)
+        p = Producer(throwing_gen(), chunksize=1)
+        self.assertEqual(1, next(p))
+        self.assertRaises(AssertionError, next, p)
+
+    def test_producer_with_list_under_all_start_methods(self):
+        for method in multiprocessing.get_all_start_methods():
+            with self.subTest(start_method=method):
+                multiprocessing.set_start_method(method, force=True)
+                p = Producer(iter([1, 2, 3]), chunksize=1)
+                self.assertEqual([1, 2, 3], list(p))
+
+    def test_producer_with_generator_under_non_fork_raises_clear_error(self):
+        for method in multiprocessing.get_all_start_methods():
+            if method == "fork":
+                continue
+            with self.subTest(start_method=method):
+                multiprocessing.set_start_method(method, force=True)
+                with self.assertRaises(RuntimeError) as cm:
+                    Producer(gen(), chunksize=1)
+                self.assertIn("requires start method 'fork'", str(cm.exception))
+                self.assertIn(method, str(cm.exception))
