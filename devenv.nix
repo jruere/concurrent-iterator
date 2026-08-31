@@ -1,7 +1,7 @@
 { pkgs, config, inputs, lib, ... }:
 
 let
-  pythonVersions = [ "3.9" "3.10" "3.11" "3.12" "3.13"];
+  pythonVersions = [ "3.9" "3.10" "3.11" "3.12" "3.13" "3.14"];
   oldPythons = map
     (version: inputs.nixpkgs-python.packages.${pkgs.system}.${version})
     pythonVersions;
@@ -12,6 +12,7 @@ let
     { name = "py311"; bin = "python3.11"; }
     { name = "py312"; bin = "python3.12"; }
     { name = "py313"; bin = "python3.13"; }
+    { name = "py314"; bin = "python3.14"; }
     { name = "pypy3"; bin = "pypy3"; }
   ];
 

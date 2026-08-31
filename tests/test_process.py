@@ -1,5 +1,6 @@
 # vim: set fileencoding=utf-8
 import logging
+import multiprocessing
 import multiprocessing.managers
 import unittest
 from contextlib import closing
@@ -10,13 +11,28 @@ from tests import ProducerTestMixin
 logging.basicConfig(level=logging.DEBUG)
 
 
-class ProcessProducerTestChunk1(unittest.TestCase, ProducerTestMixin):
+class ProcessProducerTest(unittest.TestCase):
+    def setUp(self):
+        self._orig_start_method = multiprocessing.get_start_method()
+        try:
+            multiprocessing.set_start_method("fork", force=True)
+        except ValueError:
+            self.skipTest("fork start method not available")
+
+    def tearDown(self):
+        try:
+            multiprocessing.set_start_method(self._orig_start_method, force=True)
+        except Exception:
+            pass
+
+
+class ProcessProducerTestChunk1(ProcessProducerTest, ProducerTestMixin):
 
     def _create_producer(self, iterable):
         return Producer(iterable, chunksize=1)
 
 
-class ProcessProducerTestChunk2(unittest.TestCase, ProducerTestMixin):
+class ProcessProducerTestChunk2(ProcessProducerTest, ProducerTestMixin):
 
     def _create_producer(self, iterable):
         return Producer(iterable, chunksize=2)
@@ -93,6 +109,7 @@ def throwing_gen():
 class ProcessStartMethodTest(unittest.TestCase):
     def setUp(self):
         self._orig_start_method = multiprocessing.get_start_method()
+        multiprocessing.set_start_method("fork", force=True)
 
     def tearDown(self):
         try:
@@ -101,13 +118,13 @@ class ProcessStartMethodTest(unittest.TestCase):
             pass
 
     def test_producer_with_generator_under_fork(self):
-        multiprocessing.set_start_method("fork", force=True)
         p = Producer(gen(), chunksize=1)
+
         self.assertEqual([0, 1, 2], list(p))
 
     def test_producer_with_throwing_generator_under_fork(self):
-        multiprocessing.set_start_method("fork", force=True)
         p = Producer(throwing_gen(), chunksize=1)
+
         self.assertEqual(1, next(p))
         self.assertRaises(AssertionError, next, p)
 
@@ -115,8 +132,11 @@ class ProcessStartMethodTest(unittest.TestCase):
         for method in multiprocessing.get_all_start_methods():
             with self.subTest(start_method=method):
                 multiprocessing.set_start_method(method, force=True)
+
                 p = Producer(iter([1, 2, 3]), chunksize=1)
-                self.assertEqual([1, 2, 3], list(p))
+                actual = list(p)
+
+                self.assertEqual([1, 2, 3], actual)
 
     def test_producer_with_generator_under_non_fork_raises_clear_error(self):
         for method in multiprocessing.get_all_start_methods():
@@ -124,7 +144,9 @@ class ProcessStartMethodTest(unittest.TestCase):
                 continue
             with self.subTest(start_method=method):
                 multiprocessing.set_start_method(method, force=True)
+
                 with self.assertRaises(RuntimeError) as cm:
                     Producer(gen(), chunksize=1)
+
                 self.assertIn("requires start method 'fork'", str(cm.exception))
                 self.assertIn(method, str(cm.exception))
