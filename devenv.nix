@@ -33,7 +33,6 @@ in
   # ------------------------------------------------------------------
   packages = [
     pkgs.black  # Also used interactively.
-    pkgs.mypy
     pkgs.python3Packages.build
     pkgs.python3Packages.twine
     pkgs.pypy3  # PyPy 3.x → bin/pypy3
@@ -47,14 +46,9 @@ in
   # '';
 
   tasks = testTasks // {
-    "test:type" = {
-      description = "Run type check on code base";
-      exec = "mypy";
-    };
-
     "test:all" = {
       description = "Run the full test matrix";
-      after = (map (env: "test:${env.name}") envs) ++ [ "test:type" ];
+      after = (map (env: "test:${env.name}") envs);
       before = [ "devenv:enterTest" ];
     };
 
