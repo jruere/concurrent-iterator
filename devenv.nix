@@ -33,7 +33,6 @@ in
   # Dev tools + test matrix interpreters
   # ------------------------------------------------------------------
   packages = [
-    pkgs.black  # Also used interactively.
     pkgs.python3Packages.build
     pkgs.python3Packages.twine
     pkgs.pypy3  # PyPy 3.x → bin/pypy3
@@ -94,8 +93,7 @@ in
     yamlfmt.enable = true;
 
 # Python.
-    black.enable = true;
-    isort.enable = true;
+    ruff.enable = true;
     mypy.enable = true;
   };
 }

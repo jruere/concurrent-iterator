@@ -23,21 +23,6 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-[tool.black]
-line-length = 100
-target-version = ['py310']
-preview = true
-
-[tool.isort]
-skip_gitignore = true
-balanced_wrapping = true
-include_trailing_comma = true
-py_version = 314
-line_length = 100
-multi_line_output = 3
-use_parentheses = true
-order_by_type = false
-
 [tool.coverage.run]
 source = ["concurrent_iterator"]
 
@@ -71,6 +56,15 @@ ignore_missing_imports = true
 
 # Warn of unreachable or redundant code.
 warn_unreachable = true
+
+[tool.ruff]
+target-version = "py39"
+fix = true
+force-exclude = true
+line-length = 100
+
+[tool.setuptools.package-data]
+concurrent_iterator = ["py.typed"]
 
 [build-system]
 requires = ["setuptools", "wheel"]
