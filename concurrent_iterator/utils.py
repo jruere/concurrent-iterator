@@ -5,7 +5,7 @@ def check_open(f):
     @wraps(f)
     def _f(self, *args, **kwargs):
         if self.closed:
-            raise ValueError("%s operation on closed Consumer" % f.__name__)
+            raise ValueError(f"{f.__name__} operation on closed Consumer")
         return f(self, *args, **kwargs)
 
     return _f

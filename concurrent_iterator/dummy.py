@@ -1,6 +1,3 @@
-# vim: set fileencoding=utf-8
-from __future__ import absolute_import, division, unicode_literals
-
 from concurrent_iterator import IConsumer, IProducer
 from concurrent_iterator.utils import check_open
 

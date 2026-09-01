@@ -1,5 +1,3 @@
-# vim: set fileencoding=utf-8
-
 import logging
 import unittest
 

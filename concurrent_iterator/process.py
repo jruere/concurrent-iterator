@@ -1,6 +1,3 @@
-# vim: set fileencoding=utf-8
-from __future__ import absolute_import, division, unicode_literals
-
 import itertools
 import logging
 import multiprocessing
@@ -52,12 +49,10 @@ class Producer(IProducer):
                 raise RuntimeError(
                     "process.Producer with generators and other unpicklable "
                     "iterables requires start method 'fork', got "
-                    "'{}' (Python 3.14 defaults to 'forkserver'). Use "
+                    f"'{multiprocessing.get_start_method()}' (Python 3.14 defaults to 'forkserver'). Use "
                     "thread.Producer, a picklable iterable, or "
                     "multiprocessing.set_start_method('fork', force=True) / "
-                    "multiprocessing.get_context('fork').".format(
-                        multiprocessing.get_start_method()
-                    )
+                    "multiprocessing.get_context('fork')."
                 ) from e
             raise
 
@@ -100,15 +95,14 @@ class Producer(IProducer):
             while True:
                 # Items must be added one at a time to avoid losing items
                 # before an exception.
-                for item in itertools.islice(iterator, chunksize):
-                    chunk.append(item)
+                chunk.extend(itertools.islice(iterator, chunksize))
                 if not chunk:
                     queue.put(StopIterationSentinel)  # Signal we are done.
                     break
                 else:
                     queue.put(chunk)
                 chunk = []
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception
             self._log.exception("Exception on iterator.")
 
             chunk.append(ExceptionInUserIterable(e))
@@ -136,12 +130,10 @@ class Consumer(IConsumer):
             if multiprocessing.get_start_method() != "fork":
                 raise RuntimeError(
                     "process.Consumer with unpicklable coroutines requires "
-                    "start method 'fork', got '{}' (Python 3.14 defaults to "
+                    f"start method 'fork', got '{multiprocessing.get_start_method()}' (Python 3.14 defaults to "
                     "'forkserver'). Use thread.Consumer or "
                     "multiprocessing.set_start_method('fork', force=True) / "
-                    "multiprocessing.get_context('fork').".format(
-                        multiprocessing.get_start_method()
-                    )
+                    "multiprocessing.get_context('fork')."
                 ) from e
             raise
 

@@ -1,6 +1,3 @@
-# vim: set fileencoding=utf-8
-from __future__ import absolute_import, division, unicode_literals
-
 import abc
 import logging
 import time
@@ -10,7 +7,7 @@ from unittest import mock
 logging.basicConfig(level=logging.CRITICAL)
 
 
-class ProducerTestMixin(object):
+class ProducerTestMixin:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
@@ -65,7 +62,7 @@ class ProducerTestMixin(object):
         self.assertRaises(StopIteration, next, subject)
 
 
-class ConsumerTestMixin(object):
+class ConsumerTestMixin:
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod

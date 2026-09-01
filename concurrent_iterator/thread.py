@@ -1,6 +1,3 @@
-# vim: set fileencoding=utf-8
-from __future__ import absolute_import, division, unicode_literals
-
 import threading
 from queue import Full, Queue
 
@@ -77,7 +74,7 @@ class MultiProducer(IProducer):
             except StopIteration:
                 queue.put(StopIterationSentinel)  # Signal we are done.
                 break
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception
                 queue.put(ExceptionInUserIterable(e))
 
                 # Per PEP 255, this terminates the iterable.
@@ -91,7 +88,7 @@ class Producer(MultiProducer):
     """
 
     def __init__(self, iterable, maxsize=100):
-        super(Producer, self).__init__([iterable], maxsize)
+        super().__init__([iterable], maxsize)
 
 
 class Consumer(IConsumer):

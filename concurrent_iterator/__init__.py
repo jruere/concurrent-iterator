@@ -1,13 +1,12 @@
-# vim: set fileencoding=utf-8
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
 
 
-class StopIterationSentinel(object):
+class StopIterationSentinel:
     """Sentinel to signal the end of data."""
 
 
-class ExceptionInUserIterable(object):
+class ExceptionInUserIterable:
     """User-provided iterable raises an exception."""
 
     def __init__(self, exception):
@@ -33,7 +32,7 @@ class WillNotConsume(Exception):
     """The consumer refuses to accept the given value."""
 
 
-class IConsumer(object):
+class IConsumer:
     """Wraps coroutine like objects to execute them in parallel."""
 
     __metaclass__ = ABCMeta

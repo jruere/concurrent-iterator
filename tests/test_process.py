@@ -1,4 +1,3 @@
-# vim: set fileencoding=utf-8
 import logging
 import multiprocessing
 import multiprocessing.managers
@@ -22,7 +21,7 @@ class ProcessProducerTest(unittest.TestCase):
     def tearDown(self):
         try:
             multiprocessing.set_start_method(self._orig_start_method, force=True)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
 
@@ -40,7 +39,7 @@ class ProcessProducerTestChunk2(ProcessProducerTest, ProducerTestMixin):
 
 class ProcessConsumerTest(unittest.TestCase):
 
-    class Coroutine(object):
+    class Coroutine:
 
         def __init__(self):
             self.values = []
@@ -97,8 +96,7 @@ class ProcessConsumerTest(unittest.TestCase):
 
 
 def gen(count=3):
-    for i in range(count):
-        yield i
+    yield from range(count)
 
 
 def throwing_gen():
@@ -114,7 +112,7 @@ class ProcessStartMethodTest(unittest.TestCase):
     def tearDown(self):
         try:
             multiprocessing.set_start_method(self._orig_start_method, force=True)
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
     def test_producer_with_generator_under_fork(self):
