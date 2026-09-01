@@ -51,8 +51,8 @@ Basic example:
     items = Producer(slow_generator, maxsize=5)
     
     for item in items:
-        [Do some time consuming task]
+        [Do some time-consuming-task]
 
-In the previous example, while doing some time consuming task, the
+In the previous example, while doing some time-consuming-task, the
 `slow_generator` will continue running in a background thread and will
 pre-calculate up to 5 values.
