@@ -1,5 +1,12 @@
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+T_contra = TypeVar("T_contra", contravariant=True)
 
 
 class StopIterationSentinel:
@@ -9,11 +16,11 @@ class StopIterationSentinel:
 class ExceptionInUserIterable:
     """User-provided iterable raises an exception."""
 
-    def __init__(self, exception):
-        self.exception = exception
+    def __init__(self, exception: BaseException) -> None:
+        self.exception: BaseException = exception
 
 
-class IProducer(Iterator):
+class IProducer(Iterator[T_co], metaclass=ABCMeta):
     """Interface for Producers.
 
     Implementations of this interface are "normal" iterators that accept an
@@ -21,10 +28,8 @@ class IProducer(Iterator):
     iterator in parallel and buffering a number of values.
     """
 
-    __metaclass__ = ABCMeta
-
     @abstractmethod
-    def __next__(self):
+    def __next__(self) -> T_co:
         pass
 
 
@@ -32,13 +37,11 @@ class WillNotConsume(Exception):
     """The consumer refuses to accept the given value."""
 
 
-class IConsumer:
+class IConsumer(Generic[T_contra], metaclass=ABCMeta):
     """Wraps coroutine like objects to execute them in parallel."""
 
-    __metaclass__ = ABCMeta
-
     @abstractmethod
-    def send(self, value, timeout=0):
+    def send(self, value: T_contra, timeout: float = 0) -> None:
         """Feeds a value to the consumer.
 
         :param value: Value to send.
@@ -52,10 +55,10 @@ class IConsumer:
         """
 
     @abstractmethod
-    def close(self):
+    def close(self) -> None:
         """Waits for the IConsumer to finish up and be destroyed."""
 
     @property
     @abstractmethod
-    def closed(self):
+    def closed(self) -> bool:
         """Whether the consumer has been closed."""

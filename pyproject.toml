@@ -1,6 +1,6 @@
 [project]
 name = "concurrent-iterator"
-version = "0.3.0"
+version = "0.4.0"
 description = "Classes to run producers (iterators) and consumers (coroutines) in a background thread/process."
 readme = "README.md"
 license = { text = "LGPLv3" }

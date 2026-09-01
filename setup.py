@@ -1,10 +1,8 @@
-# vim : fileencoding=UTF-8 :
-
 from setuptools import setup
 
 setup(
     name="concurrent-iterator",
-    version="0.3.0",
+    version="0.4.0",
     description="Classes to run producers (iterators) and consumers"
     " (coroutines) in a background thread/process.",
     url="https://github.com/jruere/concurrent-iterator",

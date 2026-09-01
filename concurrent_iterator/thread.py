@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import threading
+from collections.abc import Iterable, Iterator
 from queue import Full, Queue
+from typing import Any, TypeVar, cast
 
 from concurrent_iterator import (
     ExceptionInUserIterable,
@@ -10,8 +14,12 @@ from concurrent_iterator import (
 )
 from concurrent_iterator.utils import check_open
 
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+T_contra = TypeVar("T_contra", contravariant=True)
 
-class MultiProducer(IProducer):
+
+class MultiProducer(IProducer[T_co]):
     """Uses a thread to produce and buffer values from several iterables.
 
     This is different from merging multiple independent producers in that
@@ -25,14 +33,14 @@ class MultiProducer(IProducer):
     This implementation is useful for IO bound consumers.
     """
 
-    def __init__(self, iterables, maxsize=100):
-        self._queue = Queue(maxsize)
-        self._threads = []
+    def __init__(self, iterables: Iterable[Iterable[T_co]], maxsize: int = 100) -> None:
+        self._queue: Queue[object] = Queue(maxsize)
+        self._threads: list[threading.Thread] = []
 
         self._spawn_workers(iterables)
-        self._active_threads = len(self._threads)
+        self._active_threads: int = len(self._threads)
 
-    def _spawn_workers(self, iterables):
+    def _spawn_workers(self, iterables: Iterable[Iterable[T_co]]) -> None:
         for iterable in iterables:
             thread = threading.Thread(target=self._run, args=(iter(iterable), self._queue))
             thread.daemon = True
@@ -40,7 +48,7 @@ class MultiProducer(IProducer):
 
             self._threads.append(thread)
 
-    def __next__(self):
+    def __next__(self) -> T_co:
         if not self._active_threads:
             # This producer is exhausted.
             raise StopIteration
@@ -60,13 +68,13 @@ class MultiProducer(IProducer):
                 self._active_threads = 0
                 raise item.exception
             else:
-                return item
+                return cast(T_co, item)
 
-    def next(self):
+    def next(self) -> T_co:
         return self.__next__()
 
     @staticmethod
-    def _run(iterator, queue):
+    def _run(iterator: Iterator[T_co], queue: Queue[object]) -> None:
         while True:
             try:
                 item = next(iterator)
@@ -81,48 +89,50 @@ class MultiProducer(IProducer):
                 break
 
 
-class Producer(MultiProducer):
+class Producer(MultiProducer[T_co]):
     """Uses a thread to produce and buffer values from the given iterable.
 
     This implementation is useful for IO bound consumers.
     """
 
-    def __init__(self, iterable, maxsize=100):
+    def __init__(self, iterable: Iterable[T_co], maxsize: int = 100) -> None:
         super().__init__([iterable], maxsize)
 
 
-class Consumer(IConsumer):
+class Consumer(IConsumer[T_contra]):
     """Feeds the given coroutine in a separate thread."""
 
-    def __init__(self, coroutine, maxsize=1):
-        self._coroutine = coroutine
+    def __init__(self, coroutine: Any, maxsize: int = 1) -> None:
+        self._coroutine: Any = coroutine
 
-        self._closed = False
-        self._queue = Queue(maxsize)
-        self._thread = threading.Thread(target=self._run, args=(coroutine, self._queue))
+        self._closed: bool = False
+        self._queue: Queue[object] = Queue(maxsize)
+        self._thread: threading.Thread = threading.Thread(
+            target=self._run, args=(coroutine, self._queue)
+        )
         self._thread.daemon = True
 
         self._thread.start()
 
     @check_open
-    def send(self, value, timeout=0):
+    def send(self, value: T_contra, timeout: float = 0) -> None:
         try:
             self._queue.put(value, block=(timeout != 0), timeout=timeout)
         except Full:
             raise WillNotConsume()
 
     @check_open
-    def close(self):
+    def close(self) -> None:
         self._closed = True
         self._queue.put(StopIterationSentinel)
         self._thread.join()
 
     @property
-    def closed(self):
+    def closed(self) -> bool:
         return self._closed
 
     @staticmethod
-    def _run(coroutine, queue):
+    def _run(coroutine: Any, queue: Queue[object]) -> None:
         for value in iter(queue.get, StopIterationSentinel):
             coroutine.send(value)
         coroutine.close()
