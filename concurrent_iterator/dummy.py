@@ -18,13 +18,13 @@ class Producer(IProducer[T_co]):
         """In this implementation, maxsize is included to ease replacing
         implementations but it's ignored.
         """
-        self._iterator: Iterator[T_co] = iter(iterable)
+        self._iterator = iter(iterable)
 
     def __next__(self) -> T_co:
         return next(self._iterator)
 
-    def next(self) -> T_co:
-        return self.__next__()
+    def __iter__(self) -> Iterator[T_co]:
+        return self
 
 
 class Consumer(IConsumer[T_contra]):
@@ -34,9 +34,9 @@ class Consumer(IConsumer[T_contra]):
     """
 
     def __init__(self, coroutine: Any) -> None:
-        self._coroutine: Any = coroutine
+        self._coroutine = coroutine
 
-        self._closed: bool = False
+        self._closed = False
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:

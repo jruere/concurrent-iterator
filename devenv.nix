@@ -83,16 +83,14 @@ in
     mdsh.enable = true;
     pretty-format-json = {
       enable = true;
-      args = [
-        "--autofix"
-        "--no-sort-keys"
-      ];
+      args = [ "--autofix" "--no-sort-keys" ];
     };
     shellcheck.enable = true;
     # Fails. trailing-whitespace.enable = true;
     yamlfmt.enable = true;
 
 # Python.
+    black.enable = true;
     ruff.enable = true;
     mypy.enable = true;
   };

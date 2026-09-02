@@ -17,7 +17,7 @@ class ExceptionInUserIterable:
     """User-provided iterable raises an exception."""
 
     def __init__(self, exception: BaseException) -> None:
-        self.exception: BaseException = exception
+        self.exception = exception
 
 
 class IProducer(Iterator[T_co], metaclass=ABCMeta):
