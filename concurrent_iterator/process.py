@@ -3,11 +3,12 @@ from __future__ import annotations
 import itertools
 import logging
 import multiprocessing
-import multiprocessing.queues
 import pickle
+import time
 from collections.abc import Iterable, Iterator
-from queue import Full
-from typing import Any, TypeVar, cast
+from contextlib import suppress
+from queue import Empty, Full
+from typing import Any, Literal, TypeVar, Union
 
 from concurrent_iterator import (
     ExceptionInUserIterable,
@@ -18,16 +19,19 @@ from concurrent_iterator import (
 )
 from concurrent_iterator.utils import check_open
 
-T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
+
+# 3.9 does not like "|" between TypeVar and type.
+_QT = Union[list[Union[T_co, ExceptionInUserIterable]], type[StopIterationSentinel]]
 
 
 class Producer(IProducer[T_co]):
     """Uses a separate process to produce and buffer values from the given
     iterable.
 
-    This implementation is useful for IO or CPU bound consumers.
+    This implementation is useful for CPU or IO bound generators, or when the
+    consuming code in the main thread is CPU or IO bound.
 
     See multiprocessing.Pool for a more useful abstraction for CPU bound
     producers.
@@ -39,17 +43,18 @@ class Producer(IProducer[T_co]):
         assert chunksize > 0
         assert maxsize >= chunksize
 
-        self._iterator: Iterator[T_co] = iter(iterable)
+        self._iterator = iter(iterable)
 
-        self._queue: Any = multiprocessing.Queue(maxsize // chunksize)
-        self._process: multiprocessing.Process = multiprocessing.Process(
+        self._queue: multiprocessing.Queue[_QT[T_co]] = multiprocessing.Queue(maxsize // chunksize)
+        self._closed = False
+        self._current_chunk: list[T_co | ExceptionInUserIterable] = []
+        self._log = logging.getLogger(__name__ + "." + type(self).__name__)
+
+        self._process = multiprocessing.Process(
             target=self._run,
             args=(self._iterator, self._queue, chunksize),
         )
         self._process.daemon = True
-        self._current_chunk: list[Any] | None = None
-        self._log: logging.Logger = logging.getLogger(__name__ + "." + type(self).__name__)
-
         self._log.info("Starting process.")
         try:
             self._process.start()
@@ -66,76 +71,116 @@ class Producer(IProducer[T_co]):
             raise
 
     def __next__(self) -> T_co:
-        if self._current_chunk:
-            pass
-        elif self._queue is None:
-            self._log.debug("Producer is exhausted.")
-            raise StopIteration
-        else:
-            chunk: Any = self._queue.get()
-            if chunk is StopIterationSentinel or chunk == StopIterationSentinel:
-                self._process.join()
+        is_process_alive = True  # Cheap assumption.
 
-                assert self._queue is not None
-                self._queue.close()
-                self._queue = None
-                raise StopIteration
+        while not self._closed and not self._current_chunk:
+            try:
+                chunk = self._queue.get(timeout=0.1)
+            except Empty:
+                # To avoid a race condition, reporting this error condition is delayed one loop.
+                if not is_process_alive:
+                    raise RuntimeError("Child process died.")
+                is_process_alive = self._process.is_alive()
             else:
-                assert chunk
-                chunk.reverse()  # To consume it from the end.
-                self._current_chunk = chunk
+                if chunk is StopIterationSentinel:
+                    self.close()
+                else:
+                    assert isinstance(chunk, list), chunk  # For mypy, sanity check, respectively.
+                    # Reversed to consume it as a stack.
+                    self._current_chunk.extend(reversed(chunk))
 
-        assert self._current_chunk is not None
-        item: Any = self._current_chunk.pop()
+        if self._closed:
+            raise StopIteration
+
+        item = self._current_chunk.pop()
+
         if isinstance(item, ExceptionInUserIterable):
-            self._process.join()
-
-            if self._queue is not None:
-                self._queue.close()
-                self._queue = None
-
+            self.close()
             raise item.exception
 
-        return cast(T_co, item)
+        return item
 
-    def next(self) -> T_co:
-        return self.__next__()
+    def __iter__(self) -> Iterator[T_co]:
+        return self
 
-    def _run(self, iterator: Iterator[T_co], queue: Any, chunksize: int) -> None:
-        chunk: list[Any] = []
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        if self._closed:
+            return
+
+        self._closed = True
+        if self._process.is_alive():
+            self._process.terminate()
+        self._process.join(timeout=1.0)
+        with suppress(Exception):
+            self._queue.close()
+            self._queue.cancel_join_thread()
+        del self._queue
+        del self._current_chunk
+
+    def __enter__(self) -> Producer[T_co]:
+        return self
+
+    def __exit__(self, *_: object) -> Literal[False]:
+        self.close()
+        return False
+
+    def __del__(self) -> None:
         try:
-            while True:
-                # Items must be added one at a time to avoid losing items
-                # before an exception.
-                chunk.extend(itertools.islice(iterator, chunksize))
+            self.close()
+        except Exception:
+            logging.getLogger(__name__ + "." + type(self).__name__).exception(
+                "Exception in __del__"
+            )
+
+    def _run(
+        self, iterator: Iterator[T_co], queue: multiprocessing.Queue[_QT[T_co]], chunksize: int
+    ) -> None:
+        while True:
+            chunk: list[T_co | ExceptionInUserIterable] = []
+            # Items must be added one at a time to avoid losing items
+            # before an exception.
+            try:
+                for item in itertools.islice(iterator, chunksize):
+                    chunk.append(item)  # noqa: PERF402
+            except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception.
+                self._log.exception("Exception on iterator.")
+
+                chunk.append(ExceptionInUserIterable(e))
+                queue.put(chunk)
+                queue.close()
+                queue.join_thread()
+
+                break  # Per PEP 255, this terminates the iterable.
+            else:
                 if not chunk:
                     queue.put(StopIterationSentinel)  # Signal we are done.
                     break
                 else:
                     queue.put(chunk)
-                chunk = []
-        except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception
-            self._log.exception("Exception on iterator.")
-
-            chunk.append(ExceptionInUserIterable(e))
-            queue.put(chunk)
-            queue.close()
-            queue.join_thread()
-
-            # Per PEP 255, this terminates the iterable.
 
 
 class Consumer(IConsumer[T_contra]):
     """Feeds the given coroutine in a separate process."""
 
-    def __init__(self, coroutine: Any, maxsize: int = 1) -> None:
-        self._coroutine: Any = coroutine
+    def __init__(
+        self, coroutine: Any, maxsize: int = 1, shutdown_timeout_secs: float = 1.0
+    ) -> None:
+        assert (
+            shutdown_timeout_secs > 0
+        ), f"Timeout must be possitive, but was {shutdown_timeout_secs}."
 
-        self._closed: bool = False
-        self._queue: Any = multiprocessing.Queue(maxsize)
-        self._process: multiprocessing.Process = multiprocessing.Process(
-            target=self._run, args=(coroutine, self._queue)
+        self._coroutine: Any = coroutine
+        self._shutdown_timeout_secs = shutdown_timeout_secs
+
+        self._closed = False
+        self._queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]] = (
+            multiprocessing.Queue(maxsize)
         )
+        self._process = multiprocessing.Process(target=self._run, args=(coroutine, self._queue))
         self._process.daemon = True
 
         try:
@@ -158,18 +203,55 @@ class Consumer(IConsumer[T_contra]):
         except Full:
             raise WillNotConsume()
 
-    @check_open
     def close(self) -> None:
+        if self._closed:
+            return
+
         self._closed = True
-        self._queue.put(StopIterationSentinel)
-        self._process.join()
+
+        deadline = time.monotonic() + self._shutdown_timeout_secs
+        try:
+            self._queue.put(StopIterationSentinel, timeout=self._shutdown_timeout_secs)
+        except Full:
+            logging.getLogger(__name__ + "." + type(self).__name__).error(
+                "Failed to put stop-iteration sentinel."
+            )
+        else:
+            self._process.join(timeout=max(0.1, deadline - time.monotonic()))
+
+        if self._process.is_alive():
+            with suppress(Exception):
+                self._process.terminate()
+        self._process.join(timeout=1.0)
+        del self._process
+
+        self._queue.close()
+        self._queue.cancel_join_thread()
+        del self._queue
 
     @property
     def closed(self) -> bool:
         return self._closed
 
+    def __enter__(self) -> Consumer[T_contra]:
+        return self
+
+    def __exit__(self, *_: object) -> Literal[False]:
+        self.close()
+        return False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            logging.getLogger(__name__ + "." + type(self).__name__).exception(
+                "Exception in __del__"
+            )
+
     @staticmethod
-    def _run(coroutine: Any, queue: Any) -> None:
+    def _run(
+        coroutine: Any, queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]]
+    ) -> None:
         for value in iter(queue.get, StopIterationSentinel):
             coroutine.send(value)
         coroutine.close()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import itertools
 import logging
 import time
 from collections.abc import Iterable, Iterator
@@ -77,10 +78,90 @@ class ProducerTestMixin(metaclass=abc.ABCMeta):
         self.assertRaises(StopIteration, next, subject)
         self.assertRaises(StopIteration, next, subject)
 
+    def test_when_closed_early_then_next_raises_stopiteration(self) -> None:
+        subject = self._create_producer(itertools.count())
+
+        self.assertEqual(0, next(subject))
+
+        subject.close()
+
+        self.assertTrue(subject.closed)
+        self.assertRaises(StopIteration, next, subject)
+
+    def test_when_closed_early_then_close_returns_quickly(self) -> None:
+        subject = self._create_producer(itertools.count())
+
+        self.assertEqual(0, next(subject))
+        self.assertEqual(1, next(subject))
+
+        t0 = time.time()
+
+        subject.close()
+
+        elapsed = time.time() - t0
+
+        self.assertLess(elapsed, 1.0, "close() should not hang")
+        self.assertTrue(subject.closed)
+
+    def test_when_used_as_context_manager_then_closed_on_exit(self) -> None:
+        with self._create_producer(itertools.count()) as subject:
+            self.assertEqual(0, next(subject))
+
+            self.assertFalse(subject.closed)
+
+        self.assertTrue(subject.closed)
+        self.assertRaises(StopIteration, next, subject)
+
+    def test_when_close_called_twice_then_idempotent(self) -> None:
+        subject = self._create_producer(range(10))
+
+        subject.close()
+        subject.close()
+
+        self.assertTrue(subject.closed)
+        self.assertRaises(StopIteration, next, subject)
+
+    def test_when_loop_breaks_early_then_context_manager_prevents_hang(self) -> None:
+        with self._create_producer(itertools.count()) as subject:
+            for i, _v in enumerate(subject):
+                if i == 2:
+                    break
+
+            self.assertFalse(subject.closed)
+
+        self.assertTrue(subject.closed)
+
+        with self._create_producer(range(3)) as p2:
+            results = list(p2)
+
+        self.assertEqual([0, 1, 2], results)
+
+    def test_when_exhausted_then_close_is_idempotent(self) -> None:
+        subject = self._create_producer(range(3))
+
+        results = list(subject)
+
+        subject.close()
+        subject.close()
+
+        self.assertEqual([0, 1, 2], results)
+        self.assertTrue(subject.closed)
+
+    def test_when_exhausted_then_closed_becomes_true(self) -> None:
+        subject = self._create_producer(range(3))
+
+        results = list(subject)
+
+        self.assertEqual([0, 1, 2], results)
+        self.assertTrue(subject.closed)
+        self.assertRaises(StopIteration, next, subject)
+
 
 class ConsumerTestMixin(metaclass=abc.ABCMeta):
     assertRaises: Any
     assertEqual: Any
+    assertTrue: Any
+    assertFalse: Any
 
     @abc.abstractmethod
     def _create_consumer(self, coroutine: Any) -> IConsumer[Any]:
@@ -102,17 +183,16 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         subject.close()
 
         self.assertRaises(ValueError, subject.send, 0)
-        coroutine.assert_has_calls([])
+        coroutine.send.assert_not_called()
 
-    def test_when_closed_then_closing_should_not_work(self) -> None:
+    def test_when_closed_then_closing_should_work(self) -> None:
         coroutine = mock.MagicMock()
-
         subject = self._create_consumer(coroutine)
 
         subject.close()
+        subject.close()
 
-        self.assertRaises(ValueError, subject.close)
-        coroutine.assert_has_calls([])
+        coroutine.send.assert_not_called()
 
     def test_when_closed_then_it_should_close_the_passed_coroutine(self) -> None:
         coroutine = mock.MagicMock()
@@ -121,3 +201,24 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         subject.close()
 
         coroutine.close.assert_called_once_with()
+
+    def test_when_used_as_context_manager_then_closed_on_exit(self) -> None:
+        coroutine = mock.MagicMock()
+
+        with self._create_consumer(coroutine) as subject:
+            subject.send("a")
+
+            self.assertFalse(subject.closed)
+
+        self.assertTrue(subject.closed)
+        self.assertRaises(ValueError, subject.send, "b")
+
+    def test_when_close_called_twice_then_it_works(self) -> None:
+        coroutine = mock.MagicMock()
+
+        subject = self._create_consumer(coroutine)
+
+        subject.close()
+        subject.close()
+
+        self.assertTrue(subject.closed)

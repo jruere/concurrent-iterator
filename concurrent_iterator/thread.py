@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import Iterable, Iterator
-from queue import Full, Queue
-from typing import Any, TypeVar, cast
+from contextlib import suppress
+from queue import Empty, Full, Queue
+from typing import Any, Literal, TypeVar
 
 from concurrent_iterator import (
     ExceptionInUserIterable,
@@ -14,7 +16,6 @@ from concurrent_iterator import (
 )
 from concurrent_iterator.utils import check_open
 
-T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
@@ -30,69 +31,127 @@ class MultiProducer(IProducer[T_co]):
     exception terminates the entire MultiProducer.
     The rationale for this is to prevent hiding exceptions.
 
-    This implementation is useful for IO bound consumers.
+    This implementation is useful for IO-bound generators, or when the
+    consuming code in the main thread is IO-bound.
     """
 
     def __init__(self, iterables: Iterable[Iterable[T_co]], maxsize: int = 100) -> None:
-        self._queue: Queue[object] = Queue(maxsize)
+        assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
+
+        self._queue: Queue[T_co | ExceptionInUserIterable | type[StopIterationSentinel]] = Queue(
+            maxsize
+        )
         self._threads: list[threading.Thread] = []
+        self._closed = False
+        self._stop_event = threading.Event()
 
         self._spawn_workers(iterables)
-        self._active_threads: int = len(self._threads)
+        self._active_threads = len(self._threads)
+
+        if not self._active_threads:
+            self.close()  # Got no iterables.
 
     def _spawn_workers(self, iterables: Iterable[Iterable[T_co]]) -> None:
         for iterable in iterables:
-            thread = threading.Thread(target=self._run, args=(iter(iterable), self._queue))
-            thread.daemon = True
+            thread = threading.Thread(
+                target=self._run, args=(iter(iterable), self._queue, self._stop_event)
+            )
             thread.start()
 
             self._threads.append(thread)
 
     def __next__(self) -> T_co:
-        if not self._active_threads:
-            # This producer is exhausted.
+        if self._closed:
             raise StopIteration
 
         while True:
-            item = self._queue.get()
+            try:
+                item = self._queue.get(timeout=0.1)
+            except Empty:
+                if self._closed or self._stop_event.is_set():
+                    raise StopIteration
+                continue
+
             if item is StopIterationSentinel:
                 self._active_threads -= 1
                 if not self._active_threads:
-                    for thread in self._threads:
-                        thread.join()
+                    self.close()
 
                     raise StopIteration
             elif isinstance(item, ExceptionInUserIterable):
                 # Any generator raising an exception terminates the entire
                 # MultiProducer as generators don't continue after an exception.
-                self._active_threads = 0
+                self.close()
                 raise item.exception
             else:
-                return cast(T_co, item)
+                # Mypy does not narrow the type when comparing with `is`.
+                return item  # type: ignore[return-value]
 
-    def next(self) -> T_co:
-        return self.__next__()
+    def __iter__(self) -> Iterator[T_co]:
+        return self
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        if self._closed:
+            return
+
+        self._closed = True
+
+        self._stop_event.set()
+
+        for thread in self._threads:
+            thread.join(timeout=1.0)
+            if thread.is_alive():
+                logging.getLogger(__name__ + "." + type(self).__name__).warning(
+                    "Thread %s did not terminate", thread
+                )
+
+        self._active_threads = 0
+        del self._queue
+
+    def __enter__(self) -> MultiProducer[T_co]:
+        return self
+
+    def __exit__(self, *_: object) -> Literal[False]:
+        self.close()
+        return False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            logging.getLogger(__name__ + "." + type(self).__name__).exception(
+                "Exception in __del__"
+            )
 
     @staticmethod
-    def _run(iterator: Iterator[T_co], queue: Queue[object]) -> None:
-        while True:
-            try:
+    def _run(iterator: Iterator[T_co], queue: Queue[Any], stop_event: threading.Event) -> None:
+        try:
+            while not stop_event.is_set():
                 item = next(iterator)
-                queue.put(item)
-            except StopIteration:
-                queue.put(StopIterationSentinel)  # Signal we are done.
-                break
-            except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception
-                queue.put(ExceptionInUserIterable(e))
+                MultiProducer._put_cooperatively(queue, item, stop_event)
+        except StopIteration:
+            MultiProducer._put_cooperatively(queue, StopIterationSentinel, stop_event)
+        except Exception as e:  # noqa: BLE001  # intentional: forward user iterable exception
+            MultiProducer._put_cooperatively(queue, ExceptionInUserIterable(e), stop_event)
 
-                # Per PEP 255, this terminates the iterable.
-                break
+    @staticmethod
+    def _put_cooperatively(queue: Queue[Any], item: Any, stop_event: threading.Event) -> bool:
+        while not stop_event.is_set():
+            with suppress(Full):
+                queue.put(item, timeout=0.1)
+                return True
+        return False
 
 
 class Producer(MultiProducer[T_co]):
     """Uses a thread to produce and buffer values from the given iterable.
 
-    This implementation is useful for IO bound consumers.
+    This implementation is useful for IO-bound generators, or when the
+    consuming code in the main thread is IO-bound.
     """
 
     def __init__(self, iterable: Iterable[T_co], maxsize: int = 100) -> None:
@@ -102,15 +161,18 @@ class Producer(MultiProducer[T_co]):
 class Consumer(IConsumer[T_contra]):
     """Feeds the given coroutine in a separate thread."""
 
-    def __init__(self, coroutine: Any, maxsize: int = 1) -> None:
-        self._coroutine: Any = coroutine
+    def __init__(self, coroutine: Any, maxsize: int = 1, close_timeout_secs: float = 10.0):
+        assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
+        assert (
+            close_timeout_secs > 0
+        ), f"`close_timeout_secs` must be positive, but is {close_timeout_secs}."
 
-        self._closed: bool = False
-        self._queue: Queue[object] = Queue(maxsize)
-        self._thread: threading.Thread = threading.Thread(
-            target=self._run, args=(coroutine, self._queue)
-        )
-        self._thread.daemon = True
+        self._coroutine = coroutine
+        self._close_timeout_secs = close_timeout_secs
+
+        self._closed = False
+        self._queue: Queue[Any] = Queue(maxsize)
+        self._thread = threading.Thread(target=self._run, args=(coroutine, self._queue))
 
         self._thread.start()
 
@@ -121,18 +183,53 @@ class Consumer(IConsumer[T_contra]):
         except Full:
             raise WillNotConsume()
 
-    @check_open
     def close(self) -> None:
+        if self._closed:
+            return
+
         self._closed = True
-        self._queue.put(StopIterationSentinel)
+
+        # Try to enqueue sentinel without losing pending values; if queue full
+        # and consumer is slow, drain one item to avoid indefinite hang.
+        try:
+            self._queue.put(StopIterationSentinel, timeout=self._close_timeout_secs)
+        except Full:
+            while True:
+                with suppress(Empty):
+                    self._queue.get_nowait()
+                with suppress(Full):
+                    self._queue.put(StopIterationSentinel, timeout=0.1)
+                    break
+
         self._thread.join()
+        del self._thread
+        if not self._queue.empty():
+            logging.getLogger(__name__ + "." + type(self).__name__).error(
+                "Closed with %d messages in queue.", self._queue.qsize()
+            )
+        del self._queue
 
     @property
     def closed(self) -> bool:
         return self._closed
 
+    def __enter__(self) -> Consumer[T_contra]:
+        return self
+
+    def __exit__(self, *_: object) -> Literal[False]:
+        self.close()
+        return False
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            logging.getLogger(__name__ + "." + type(self).__name__).exception(
+                "Exception in __del__"
+            )
+
     @staticmethod
-    def _run(coroutine: Any, queue: Queue[object]) -> None:
+    def _run(coroutine: Any, queue: Queue[Any]) -> None:
         for value in iter(queue.get, StopIterationSentinel):
             coroutine.send(value)
         coroutine.close()

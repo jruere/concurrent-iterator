@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -32,6 +32,23 @@ class IProducer(Iterator[T_co], metaclass=ABCMeta):
     def __next__(self) -> T_co:
         pass
 
+    @abstractmethod
+    def close(self) -> None:
+        """Close the producer and release resources."""
+
+    @property
+    @abstractmethod
+    def closed(self) -> bool:
+        """Whether the producer has been closed."""
+
+    @abstractmethod
+    def __enter__(self) -> IProducer[T_co]:
+        """Enter context manager."""
+
+    @abstractmethod
+    def __exit__(self, *args: object) -> Literal[False]:
+        """Exit context manager."""
+
 
 class WillNotConsume(Exception):
     """The consumer refuses to accept the given value."""
@@ -45,13 +62,16 @@ class IConsumer(Generic[T_contra], metaclass=ABCMeta):
         """Feeds a value to the consumer.
 
         :param value: Value to send.
-        :param timeout: Time to wait to send value before failing if there's a
-                        chance it might eventually succeed.
+        :param timeout: Maximum time to block waiting for queue space.
+                        If the value cannot be enqueued within this time,
+                        raises WillNotConsume. A value of 0 (the default)
+                        never blocks and raises immediately if there is
+                        no space.
         :type timeout: float
         :returns: Nothing.
         :rtype: None
         :raises WillNotConsume: When the given value is not accepted. It may be
-                                accepted on retry.
+                                 accepted on retry.
         """
 
     @abstractmethod
@@ -62,3 +82,11 @@ class IConsumer(Generic[T_contra], metaclass=ABCMeta):
     @abstractmethod
     def closed(self) -> bool:
         """Whether the consumer has been closed."""
+
+    @abstractmethod
+    def __enter__(self) -> IConsumer[T_contra]:
+        """Enter context manager."""
+
+    @abstractmethod
+    def __exit__(self, *args: object) -> Literal[False]:
+        """Exit context manager."""
