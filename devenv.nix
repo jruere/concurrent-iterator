@@ -46,7 +46,7 @@ in
   # '';
 
   tasks = testTasks // {
-    "test:all" = {
+    "test:all-versions" = {
       description = "Run the full test matrix";
       after = (map (env: "test:${env.name}") envs);
       before = [ "devenv:enterTest" ];
@@ -65,7 +65,7 @@ in
 
     "publish:upload" = {
       description = "Build and upload the package to PyPI";
-      after = [ "publish:build" "test:all" ];
+      after = [ "publish:build" "test:all-versions" ];
       exec = "twine upload dist/*";
     };
   };
