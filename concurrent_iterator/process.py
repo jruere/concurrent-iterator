@@ -82,7 +82,7 @@ class Producer(IProducer[T_co]):
                     raise RuntimeError("Child process died.")
                 is_process_alive = self._process.is_alive()
             else:
-                if chunk is StopIterationSentinel:
+                if chunk == StopIterationSentinel:  # Might not work across procs.
                     self.close()
                 else:
                     assert isinstance(chunk, list), chunk  # For mypy, sanity check, respectively.
@@ -177,10 +177,14 @@ class Consumer(IConsumer[T_contra]):
         self._shutdown_timeout_secs = shutdown_timeout_secs
 
         self._closed = False
+        self._error: BaseException | None = None
         self._queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]] = (
             multiprocessing.Queue(maxsize)
         )
-        self._process = multiprocessing.Process(target=self._run, args=(coroutine, self._queue))
+        self._errors: multiprocessing.Queue[BaseException] = multiprocessing.Queue()
+        self._process = multiprocessing.Process(
+            target=self._run, args=(coroutine, self._queue, self._errors)
+        )
         self._process.daemon = True
 
         try:
@@ -198,6 +202,13 @@ class Consumer(IConsumer[T_contra]):
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
+        # Fail fast once the worker is known to have failed: close() releases
+        # resources and re-raises the stashed error.
+        with suppress(Empty):
+            self._error = self._errors.get_nowait()
+        if self._error is not None:
+            self.close()
+
         try:
             self._queue.put(value, block=(timeout != 0), timeout=timeout)
         except Full:
@@ -229,6 +240,16 @@ class Consumer(IConsumer[T_contra]):
         self._queue.cancel_join_thread()
         del self._queue
 
+        if self._error is None:
+            with suppress(Empty):
+                self._error = self._errors.get_nowait()
+        self._errors.close()
+        self._errors.cancel_join_thread()
+        del self._errors
+
+        if self._error is not None:
+            raise self._error
+
     @property
     def closed(self) -> bool:
         return self._closed
@@ -250,8 +271,14 @@ class Consumer(IConsumer[T_contra]):
 
     @staticmethod
     def _run(
-        coroutine: Any, queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]]
+        coroutine: Any,
+        queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]],
+        errors: multiprocessing.Queue[BaseException],
     ) -> None:
-        for value in iter(queue.get, StopIterationSentinel):
-            coroutine.send(value)
-        coroutine.close()
+        try:
+            for value in iter(queue.get, StopIterationSentinel):
+                coroutine.send(value)
+        except Exception as e:  # noqa: BLE001
+            errors.put(e)
+        finally:
+            coroutine.close()

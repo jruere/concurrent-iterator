@@ -171,6 +171,7 @@ class Consumer(IConsumer[T_contra]):
         self._close_timeout_secs = close_timeout_secs
 
         self._closed = False
+        self._error: BaseException | None = None
         self._queue: Queue[Any] = Queue(maxsize)
         self._thread = threading.Thread(target=self._run, args=(coroutine, self._queue))
 
@@ -178,6 +179,12 @@ class Consumer(IConsumer[T_contra]):
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
+        # Fail fast once the worker is known to have failed: close() releases
+        # resources and re-raises the stashed error. No lock: the worker is
+        # the only writer, a stale read merely delays this by one send, and
+        # close() joins the worker before reading.
+        if self._error is not None:
+            self.close()
         try:
             self._queue.put(value, block=(timeout != 0), timeout=timeout)
         except Full:
@@ -189,17 +196,20 @@ class Consumer(IConsumer[T_contra]):
 
         self._closed = True
 
-        # Try to enqueue sentinel without losing pending values; if queue full
-        # and consumer is slow, drain one item to avoid indefinite hang.
-        try:
-            self._queue.put(StopIterationSentinel, timeout=self._close_timeout_secs)
-        except Full:
-            while True:
-                with suppress(Empty):
-                    self._queue.get_nowait()
-                with suppress(Full):
-                    self._queue.put(StopIterationSentinel, timeout=0.1)
-                    break
+        # A dead worker needs no sentinel; don't block waiting for one that
+        # will never drain the queue (e.g. after it failed).
+        if self._thread.is_alive():
+            # Try to enqueue sentinel without losing pending values; if queue full
+            # and consumer is slow, drain one item to avoid indefinite hang.
+            try:
+                self._queue.put(StopIterationSentinel, timeout=self._close_timeout_secs)
+            except Full:
+                while True:
+                    with suppress(Empty):
+                        self._queue.get_nowait()
+                    with suppress(Full):
+                        self._queue.put(StopIterationSentinel, timeout=0.1)
+                        break
 
         self._thread.join()
         del self._thread
@@ -208,6 +218,9 @@ class Consumer(IConsumer[T_contra]):
                 "Closed with %d messages in queue.", self._queue.qsize()
             )
         del self._queue
+
+        if self._error is not None:
+            raise self._error
 
     @property
     def closed(self) -> bool:
@@ -228,8 +241,11 @@ class Consumer(IConsumer[T_contra]):
                 "Exception in __del__"
             )
 
-    @staticmethod
-    def _run(coroutine: Any, queue: Queue[Any]) -> None:
-        for value in iter(queue.get, StopIterationSentinel):
-            coroutine.send(value)
-        coroutine.close()
+    def _run(self, coroutine: Any, queue: Queue[Any]) -> None:
+        try:
+            for value in iter(queue.get, StopIterationSentinel):
+                coroutine.send(value)
+        except Exception as e:  # noqa: BLE001
+            self._error = e
+        finally:
+            coroutine.close()

@@ -5,15 +5,28 @@ import itertools
 import logging
 import time
 from collections.abc import Iterable, Iterator
-from contextlib import closing
+from contextlib import closing, suppress
 from typing import Any, TypeVar
 from unittest import mock
 
-from concurrent_iterator import IConsumer, IProducer
+from concurrent_iterator import IConsumer, IProducer, WillNotConsume
 
 T = TypeVar("T")
 
 logging.basicConfig(level=logging.CRITICAL)
+
+
+class ThrowingCoroutine:
+    """Minimal failing coroutine: raises on `send`.
+
+    Module-level so instances pickle (usable with `spawn`/`forkserver` children).
+    """
+
+    def send(self, value: Any) -> None:
+        raise RuntimeError(f"boom {value}")
+
+    def close(self) -> None:
+        pass
 
 
 class ProducerTestMixin(metaclass=abc.ABCMeta):
@@ -162,6 +175,8 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
     assertEqual: Any
     assertTrue: Any
     assertFalse: Any
+    assertIn: Any
+    fail: Any
 
     @abc.abstractmethod
     def _create_consumer(self, coroutine: Any) -> IConsumer[Any]:
@@ -222,3 +237,36 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         subject.close()
 
         self.assertTrue(subject.closed)
+
+    def test_when_coroutine_raises_then_it_is_not_silently_swallowed(self) -> None:
+        subject = self._create_consumer(ThrowingCoroutine())
+
+        with self.assertRaises(RuntimeError) as cm, subject:
+            subject.send("a value")
+
+        self.assertIn("boom", str(cm.exception))
+        self.assertTrue(subject.closed)
+
+    def test_when_worker_failed_then_further_sends_raise_the_error(self) -> None:
+        subject = self._create_consumer(ThrowingCoroutine())
+
+        try:
+            subject.send("first")
+        except RuntimeError:
+            pass  # Synchronous backends surface the failure immediately.
+
+        try:
+            deadline = time.monotonic() + 5.0
+            while True:
+                try:
+                    subject.send("another")
+                except RuntimeError as e:
+                    self.assertIn("boom", str(e))
+                    break
+                except WillNotConsume:
+                    pass  # Queue full; the worker has not drained yet.
+                if time.monotonic() > deadline:
+                    self.fail("sends kept being accepted after the worker failed")
+        finally:
+            with suppress(RuntimeError):
+                subject.close()
