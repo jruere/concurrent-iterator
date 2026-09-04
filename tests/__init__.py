@@ -136,7 +136,7 @@ class ProducerTestMixin(metaclass=abc.ABCMeta):
 
     def test_when_loop_breaks_early_then_context_manager_prevents_hang(self) -> None:
         with self._create_producer(itertools.count()) as subject:
-            for i, _v in enumerate(subject):
+            for i, _ in enumerate(subject):
                 if i == 2:
                     break
 
