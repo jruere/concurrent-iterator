@@ -6,6 +6,7 @@ import unittest
 from collections.abc import Iterable
 from typing import Any, TypeVar
 
+from concurrent_iterator import ConsumerCoroutine
 from concurrent_iterator.dummy import Consumer, Producer
 from tests import ConsumerTestMixin, ProducerTestMixin
 
@@ -36,7 +37,7 @@ class DummyProducerValidationTest(unittest.TestCase):
 
 
 class DummyConsumerTest(unittest.TestCase, ConsumerTestMixin):
-    def _create_consumer(self, coroutine: Any) -> Consumer[Any]:
+    def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
         return Consumer(coroutine)
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
-from typing import Generic, Literal, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
@@ -46,12 +46,19 @@ class IProducer(Iterator[T_co], metaclass=ABCMeta):
         """Enter context manager."""
 
     @abstractmethod
-    def __exit__(self, *args: object) -> Literal[False]:
+    def __exit__(self, *args: object) -> bool:
         """Exit context manager."""
 
 
 class WillNotConsume(Exception):
     """The consumer refuses to accept the given value."""
+
+
+class ConsumerCoroutine(Protocol[T_contra]):
+    """Generator-based coroutine fed by Consumers."""
+
+    def send(self, value: T_contra) -> Any: ...
+    def close(self) -> None: ...
 
 
 class IConsumer(Generic[T_contra], metaclass=ABCMeta):
@@ -67,9 +74,6 @@ class IConsumer(Generic[T_contra], metaclass=ABCMeta):
                         raises WillNotConsume. A value of 0 (the default)
                         never blocks and raises immediately if there is
                         no space.
-        :type timeout: float
-        :returns: Nothing.
-        :rtype: None
         :raises WillNotConsume: When the given value is not accepted. It may be
                                  accepted on retry.
         """
@@ -88,5 +92,5 @@ class IConsumer(Generic[T_contra], metaclass=ABCMeta):
         """Enter context manager."""
 
     @abstractmethod
-    def __exit__(self, *args: object) -> Literal[False]:
+    def __exit__(self, *args: object) -> bool:
         """Exit context manager."""

@@ -8,9 +8,10 @@ import time
 from collections.abc import Iterable, Iterator
 from contextlib import suppress
 from queue import Empty, Full
-from typing import Any, Literal, TypeVar, Union
+from typing import Literal, TypeVar, Union, cast
 
 from concurrent_iterator import (
+    ConsumerCoroutine,
     ExceptionInUserIterable,
     IConsumer,
     IProducer,
@@ -167,13 +168,16 @@ class Consumer(IConsumer[T_contra]):
     """Feeds the given coroutine in a separate process."""
 
     def __init__(
-        self, coroutine: Any, maxsize: int = 1, shutdown_timeout_secs: float = 1.0
+        self,
+        coroutine: ConsumerCoroutine[T_contra],
+        maxsize: int = 1,
+        shutdown_timeout_secs: float = 1.0,
     ) -> None:
         assert (
             shutdown_timeout_secs > 0
         ), f"Timeout must be possitive, but was {shutdown_timeout_secs}."
 
-        self._coroutine: Any = coroutine
+        self._coroutine: ConsumerCoroutine[T_contra] = coroutine
         self._shutdown_timeout_secs = shutdown_timeout_secs
 
         self._closed = False
@@ -271,13 +275,14 @@ class Consumer(IConsumer[T_contra]):
 
     @staticmethod
     def _run(
-        coroutine: Any,
+        coroutine: ConsumerCoroutine[T_contra],
         queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]],
         errors: multiprocessing.Queue[BaseException],
     ) -> None:
         try:
             for value in iter(queue.get, StopIterationSentinel):
-                coroutine.send(value)
+                # iter() strips the sentinel, but mypy cannot infer that.
+                coroutine.send(cast(T_contra, value))
         except Exception as e:  # noqa: BLE001
             errors.put(e)
         finally:

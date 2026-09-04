@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
-from typing import Any, Literal, TypeVar
+from typing import Literal, TypeVar
 
-from concurrent_iterator import IConsumer, IProducer
+from concurrent_iterator import ConsumerCoroutine, IConsumer, IProducer
 from concurrent_iterator.utils import check_open
 
 T = TypeVar("T")
@@ -58,7 +58,7 @@ class Consumer(IConsumer[T_contra]):
     The timeout parameter is ignored, this implementation will block forever.
     """
 
-    def __init__(self, coroutine: Any) -> None:
+    def __init__(self, coroutine: ConsumerCoroutine[T_contra]) -> None:
         self._coroutine = coroutine
 
         self._closed = False

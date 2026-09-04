@@ -10,6 +10,7 @@ from collections.abc import Iterable, Iterator
 from contextlib import closing
 from typing import Any, TypeVar
 
+from concurrent_iterator import ConsumerCoroutine
 from concurrent_iterator.process import Consumer, Producer
 from tests import ConsumerTestMixin, ProducerTestMixin
 
@@ -142,9 +143,9 @@ class ProcessConsumerTest(unittest.TestCase, ConsumerTestMixin):
         def get_closed(self) -> bool:
             return self.closed
 
-    coroutine: Any
+    coroutine: Coroutine
 
-    def _create_consumer(self, coroutine: Any) -> Consumer[Any]:
+    def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
         return Consumer(coroutine)
 
     def setUp(self) -> None:
@@ -203,7 +204,7 @@ class ProcessConsumerCloseTest(unittest.TestCase):
 
     manager: Any
 
-    def _create_consumer(self, coroutine: Any) -> Consumer[Any]:
+    def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
         return Consumer(coroutine)
 
     def setUp(self) -> None:

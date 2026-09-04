@@ -9,7 +9,7 @@ from contextlib import closing, suppress
 from typing import Any, TypeVar
 from unittest import mock
 
-from concurrent_iterator import IConsumer, IProducer, WillNotConsume
+from concurrent_iterator import ConsumerCoroutine, IConsumer, IProducer, WillNotConsume
 
 T = TypeVar("T")
 
@@ -179,7 +179,7 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
     fail: Any
 
     @abc.abstractmethod
-    def _create_consumer(self, coroutine: Any) -> IConsumer[Any]:
+    def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> IConsumer[Any]:
         raise NotImplementedError
 
     def test_when_a_value_is_sent_then_it_is_forwarded_to_the_coroutine(self) -> None:

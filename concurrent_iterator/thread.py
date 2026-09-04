@@ -8,6 +8,7 @@ from queue import Empty, Full, Queue
 from typing import Any, Literal, TypeVar
 
 from concurrent_iterator import (
+    ConsumerCoroutine,
     ExceptionInUserIterable,
     IConsumer,
     IProducer,
@@ -161,7 +162,12 @@ class Producer(MultiProducer[T_co]):
 class Consumer(IConsumer[T_contra]):
     """Feeds the given coroutine in a separate thread."""
 
-    def __init__(self, coroutine: Any, maxsize: int = 1, close_timeout_secs: float = 10.0):
+    def __init__(
+        self,
+        coroutine: ConsumerCoroutine[T_contra],
+        maxsize: int = 1,
+        close_timeout_secs: float = 10.0,
+    ):
         assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
         assert (
             close_timeout_secs > 0
@@ -241,7 +247,7 @@ class Consumer(IConsumer[T_contra]):
                 "Exception in __del__"
             )
 
-    def _run(self, coroutine: Any, queue: Queue[Any]) -> None:
+    def _run(self, coroutine: ConsumerCoroutine[T_contra], queue: Queue[Any]) -> None:
         try:
             for value in iter(queue.get, StopIterationSentinel):
                 coroutine.send(value)

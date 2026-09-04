@@ -7,6 +7,7 @@ import unittest
 from collections.abc import Iterable
 from typing import Any, TypeVar
 
+from concurrent_iterator import ConsumerCoroutine
 from concurrent_iterator.thread import Consumer, MultiProducer, Producer
 from tests import ConsumerTestMixin, ProducerTestMixin
 
@@ -32,7 +33,7 @@ class ThreadProducerValidationTest(unittest.TestCase):
 
 
 class ThreadConsumerTest(unittest.TestCase, ConsumerTestMixin):
-    def _create_consumer(self, coroutine: Any) -> Consumer[Any]:
+    def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
         return Consumer(coroutine)
 
 
