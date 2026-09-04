@@ -108,7 +108,9 @@ class Producer(IProducer[T_co]):
                 if chunk is StopIterationSentinel:
                     self.close()
                 else:
-                    assert isinstance(chunk, list), chunk  # For mypy and as sanity check.
+                    assert isinstance(
+                        chunk, list
+                    ), f"Expected list chunk, but got {chunk}."  # For mypy and as sanity check.
                     # Reversed to consume it as a stack.
                     self._current_chunk.extend(reversed(chunk))
 

@@ -18,7 +18,9 @@ class Producer(IProducer[T_co]):
         """In this implementation, `maxsize` is included to ease replacing
         implementations but it's ignored.
         """
-        assert maxsize is None or maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
+        assert (
+            maxsize is None or maxsize > 0
+        ), f"`maxsize` must be None or positive, but is {maxsize}."
 
         self._iterator = iter(iterable)
 
