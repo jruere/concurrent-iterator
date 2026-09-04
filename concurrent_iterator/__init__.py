@@ -4,20 +4,15 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
 from typing import Any, Generic, Protocol, TypeVar
 
-T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
-
-class StopIterationSentinel:
-    """Sentinel to signal the end of data."""
-
-
-class ExceptionInUserIterable:
-    """User-provided iterable raises an exception."""
-
-    def __init__(self, exception: BaseException) -> None:
-        self.exception = exception
+__all__ = [
+    "ConsumerCoroutine",
+    "IConsumer",
+    "IProducer",
+    "WillNotConsume",
+]
 
 
 class IProducer(Iterator[T_co], metaclass=ABCMeta):

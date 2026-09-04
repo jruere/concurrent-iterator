@@ -9,13 +9,15 @@ from typing import Any, Literal, TypeVar
 
 from concurrent_iterator import (
     ConsumerCoroutine,
-    ExceptionInUserIterable,
     IConsumer,
     IProducer,
-    StopIterationSentinel,
     WillNotConsume,
 )
-from concurrent_iterator.utils import check_open
+from concurrent_iterator._internal import (
+    ExceptionInUserIterable,
+    StopIterationSentinel,
+    check_open,
+)
 
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)

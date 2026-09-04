@@ -7,6 +7,17 @@ from typing import Any, TypeVar, cast
 R = TypeVar("R")
 
 
+class StopIterationSentinel:
+    """Sentinel to signal the end of data."""
+
+
+class ExceptionInUserIterable:
+    """User-provided iterable raises an exception."""
+
+    def __init__(self, exception: BaseException) -> None:
+        self.exception = exception
+
+
 def check_open(func: Callable[..., R]) -> Callable[..., R]:
     @wraps(func)
     def _f(self: Any, *args: Any, **kwargs: Any) -> R:

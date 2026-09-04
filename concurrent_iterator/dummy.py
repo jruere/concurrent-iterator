@@ -4,7 +4,7 @@ from collections.abc import Iterable, Iterator
 from typing import Literal, TypeVar
 
 from concurrent_iterator import ConsumerCoroutine, IConsumer, IProducer
-from concurrent_iterator.utils import check_open
+from concurrent_iterator._internal import check_open
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
