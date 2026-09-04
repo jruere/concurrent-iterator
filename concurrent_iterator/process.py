@@ -7,8 +7,9 @@ import pickle
 import time
 from collections.abc import Iterable, Iterator
 from contextlib import suppress
+from multiprocessing.context import BaseContext
 from queue import Empty, Full
-from typing import Literal, TypeVar, Union, cast
+from typing import Literal, TypeVar, Union
 
 from concurrent_iterator import (
     ConsumerCoroutine,
@@ -29,6 +30,12 @@ T_contra = TypeVar("T_contra", contravariant=True)
 _QT = Union[list[Union[T_co, ExceptionInUserIterable]], type[StopIterationSentinel]]
 
 
+def _resolve_mp_context(mp_context: BaseContext | None) -> BaseContext:
+    if mp_context is None:
+        return multiprocessing.get_context()
+    return mp_context
+
+
 class Producer(IProducer[T_co]):
     """Uses a separate process to produce and buffer values from the given
     iterable.
@@ -40,36 +47,49 @@ class Producer(IProducer[T_co]):
     producers.
 
     For logging to work properly, use multiprocessing-logging.
+
+    :param mp_context: multiprocessing context used for Queue and Process.
+        Defaults to the global default context
+        (`multiprocessing.get_context()`). Pass e.g.
+        `multiprocessing.get_context("fork")` to use generators and other
+        unpicklable iterables without touching global state.
     """
 
-    def __init__(self, iterable: Iterable[T_co], maxsize: int = 100, chunksize: int = 1) -> None:
+    def __init__(
+        self,
+        iterable: Iterable[T_co],
+        maxsize: int = 100,
+        chunksize: int = 1,
+        mp_context: BaseContext | None = None,
+    ) -> None:
         assert chunksize > 0, f"`chunksize` must be positive, but is {chunksize}."
         assert maxsize >= chunksize, f"`maxsize` ({maxsize}) must be >= `chunksize` ({chunksize})."
 
         self._iterator = iter(iterable)
 
-        self._queue: multiprocessing.Queue[_QT[T_co]] = multiprocessing.Queue(maxsize // chunksize)
+        ctx = _resolve_mp_context(mp_context)
+        self._queue: multiprocessing.Queue[_QT[T_co]] = ctx.Queue(maxsize // chunksize)
         self._closed = False
         self._current_chunk: list[T_co | ExceptionInUserIterable] = []
         self._log = logging.getLogger(__name__ + "." + type(self).__name__)
-
-        self._process = multiprocessing.Process(
+        # BaseContext stubs omit Process (only concrete contexts define it).
+        self._process = ctx.Process(  # type: ignore[attr-defined]
             target=self._run,
             args=(self._iterator, self._queue, chunksize),
         )
+
         self._process.daemon = True
         self._log.info("Starting process.")
         try:
             self._process.start()
         except (TypeError, pickle.PicklingError) as e:
-            if multiprocessing.get_start_method() != "fork":
+            if ctx.get_start_method() != "fork":
                 raise RuntimeError(
                     "process.Producer with generators and other unpicklable "
                     "iterables requires start method 'fork', got "
-                    f"'{multiprocessing.get_start_method()}' (Python 3.14 defaults to 'forkserver'). Use "
+                    f"'{ctx.get_start_method()}' (Python 3.14 defaults to 'forkserver'). Use "
                     "thread.Producer, a picklable iterable, or "
-                    "multiprocessing.set_start_method('fork', force=True) / "
-                    "multiprocessing.get_context('fork')."
+                    "mp_context=multiprocessing.get_context('fork')."
                 ) from e
             raise
 
@@ -167,42 +187,51 @@ class Producer(IProducer[T_co]):
 
 
 class Consumer(IConsumer[T_contra]):
-    """Feeds the given coroutine in a separate process."""
+    """Feeds the given coroutine in a separate process.
+
+    :param mp_context: multiprocessing context used for Queue and Process.
+        Defaults to the global default context
+        (`multiprocessing.get_context()`). Pass e.g.
+        `multiprocessing.get_context("fork")` for unpicklable coroutines
+        without touching global state.
+    """
 
     def __init__(
         self,
         coroutine: ConsumerCoroutine[T_contra],
         maxsize: int = 1,
         shutdown_timeout_secs: float = 1.0,
+        mp_context: BaseContext | None = None,
     ) -> None:
         assert (
             shutdown_timeout_secs > 0
         ), f"`shutdown_timeout_secs` must be positive, but is {shutdown_timeout_secs}."
 
+        ctx = _resolve_mp_context(mp_context)
         self._coroutine: ConsumerCoroutine[T_contra] = coroutine
         self._shutdown_timeout_secs = shutdown_timeout_secs
 
         self._closed = False
         self._error: BaseException | None = None
-        self._queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]] = (
-            multiprocessing.Queue(maxsize)
+        self._queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]] = ctx.Queue(
+            maxsize
         )
-        self._errors: multiprocessing.Queue[BaseException] = multiprocessing.Queue()
-        self._process = multiprocessing.Process(
+        self._errors: multiprocessing.Queue[BaseException] = ctx.Queue()
+        # BaseContext stubs omit Process (only concrete contexts define it).
+        self._process = ctx.Process(  # type: ignore[attr-defined]
             target=self._run, args=(coroutine, self._queue, self._errors)
         )
-        self._process.daemon = True
 
+        self._process.daemon = True
         try:
             self._process.start()
         except (TypeError, pickle.PicklingError) as e:
-            if multiprocessing.get_start_method() != "fork":
+            if ctx.get_start_method() != "fork":
                 raise RuntimeError(
                     "process.Consumer with unpicklable coroutines requires "
-                    f"start method 'fork', got '{multiprocessing.get_start_method()}' (Python 3.14 defaults to "
+                    f"start method 'fork', got '{ctx.get_start_method()}' (Python 3.14 defaults to "
                     "'forkserver'). Use thread.Consumer or "
-                    "multiprocessing.set_start_method('fork', force=True) / "
-                    "multiprocessing.get_context('fork')."
+                    "mp_context=multiprocessing.get_context('fork')."
                 ) from e
             raise
 
@@ -284,7 +313,7 @@ class Consumer(IConsumer[T_contra]):
         try:
             for value in iter(queue.get, StopIterationSentinel):
                 # iter() strips the sentinel, but mypy cannot infer that.
-                coroutine.send(cast(T_contra, value))
+                coroutine.send(value)  # type: ignore[arg-type]
         except Exception as e:  # noqa: BLE001
             errors.put(e)
         finally:

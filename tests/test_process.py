@@ -8,7 +8,8 @@ import time
 import unittest
 from collections.abc import Iterable, Iterator
 from contextlib import closing
-from typing import Any, TypeVar
+from multiprocessing.context import BaseContext
+from typing import Any, ClassVar, TypeVar
 
 from concurrent_iterator import ConsumerCoroutine
 from concurrent_iterator.process import Consumer, Producer
@@ -20,30 +21,21 @@ logging.basicConfig(level=logging.WARNING)
 
 
 class ProcessProducerTest(unittest.TestCase):
-    _orig_start_method: str | None
+    fork_mp_context: ClassVar[BaseContext]
 
-    def setUp(self) -> None:
-        self._orig_start_method = multiprocessing.get_start_method()
-        try:
-            multiprocessing.set_start_method("fork", force=True)
-        except ValueError:
-            self.skipTest("fork start method not available")
-
-    def tearDown(self) -> None:
-        try:
-            multiprocessing.set_start_method(self._orig_start_method, force=True)
-        except Exception:  # noqa: BLE001, S110
-            pass
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.fork_mp_context = multiprocessing.get_context("fork")
 
 
 class ProcessProducerTestChunk1(ProcessProducerTest, ProducerTestMixin):
     def _create_producer(self, iterable: Iterable[T]) -> Producer[T]:
-        return Producer(iterable, chunksize=1)
+        return Producer(iterable, chunksize=1, mp_context=self.fork_mp_context)
 
 
 class ProcessProducerTestChunk2(ProcessProducerTest, ProducerTestMixin):
     def _create_producer(self, iterable: Iterable[T]) -> Producer[T]:
-        return Producer(iterable, chunksize=2)
+        return Producer(iterable, chunksize=2, mp_context=self.fork_mp_context)
 
 
 class ProcessProducerValidationTest(ProcessProducerTest):
@@ -66,13 +58,18 @@ class ProcessProducerValidationTest(ProcessProducerTest):
 
 class ProcessProducerFailureTest(ProcessProducerTest):
     def test_when_child_dies_then_next_raises_runtime_error(self) -> None:
-        subject = Producer(itertools.count(), chunksize=1, maxsize=1)
+        gate = self.fork_mp_context.Event()
+
+        def gated_count() -> Iterator[int]:
+            yield 0
+            # Block so the child cannot buffer anything past the consumed item.
+            # Timeout only bounds pathological runs; the child is terminated below.
+            gate.wait(10.0)
+            yield from itertools.count(1)
+
+        subject = Producer(gated_count(), chunksize=1, maxsize=1, mp_context=self.fork_mp_context)
 
         self.assertEqual(0, next(subject))
-        # Allow background process to block on queue.put (queue full)
-        time.sleep(0.3)
-
-        self.assertEqual(1, next(subject))
         # Kill child while queue is empty
 
         subject._process.terminate()
@@ -96,7 +93,9 @@ class ProcessProducerFailureTest(ProcessProducerTest):
     def test_when_child_dies_with_buffered_item_then_returns_buffer_before_raising(
         self,
     ) -> None:
-        subject = Producer(itertools.count(), chunksize=1, maxsize=10)
+        subject = Producer(
+            itertools.count(), chunksize=1, maxsize=10, mp_context=self.fork_mp_context
+        )
 
         self.assertEqual(0, next(subject))
         time.sleep(0.3)
@@ -146,7 +145,8 @@ class ProcessConsumerTest(unittest.TestCase, ConsumerTestMixin):
     coroutine: Coroutine
 
     def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
-        return Consumer(coroutine)
+        fork_ctx = multiprocessing.get_context("fork")
+        return Consumer(coroutine, mp_context=fork_ctx)
 
     def setUp(self) -> None:
         manager = multiprocessing.managers.BaseManager()
@@ -205,10 +205,10 @@ class ProcessConsumerCloseTest(unittest.TestCase):
     manager: Any
 
     def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
-        return Consumer(coroutine)
+        fork_ctx = multiprocessing.get_context("fork")
+        return Consumer(coroutine, mp_context=fork_ctx)
 
     def setUp(self) -> None:
-        multiprocessing.set_start_method("fork", force=True)
         manager = multiprocessing.managers.BaseManager()
         manager.register("SlowCoroutine", ProcessConsumerCloseTest.SlowCoroutine)
         manager.start()
@@ -217,7 +217,7 @@ class ProcessConsumerCloseTest(unittest.TestCase):
     def test_when_queue_full_then_close_returns_quickly(self) -> None:
         # Coroutine that sleeps to keep queue full
         coro = self.manager.SlowCoroutine()
-        subject: Consumer[Any] = Consumer(coro, maxsize=1)
+        subject: Consumer[Any] = self._create_consumer(coro)
 
         subject.send("first")
         # Give thread time to take first value and sleep
@@ -261,49 +261,97 @@ def throwing_gen() -> Iterator[int]:
     raise AssertionError("Test exception")
 
 
-class ProcessStartMethodTest(unittest.TestCase):
-    _orig_start_method: str | None
-
-    def setUp(self) -> None:
-        self._orig_start_method = multiprocessing.get_start_method()
-        multiprocessing.set_start_method("fork", force=True)
-
-    def tearDown(self) -> None:
+class ProcessMpContextTest(unittest.TestCase):
+    def test_when_default_then_it_follows_the_global_setting(self) -> None:
         try:
-            multiprocessing.set_start_method(self._orig_start_method, force=True)
-        except Exception:  # noqa: BLE001, S110
-            pass
+            multiprocessing.get_context("spawn")
+        except ValueError:
+            self.skipTest("spawn start method not available")
 
-    def test_producer_with_generator_under_fork(self) -> None:
-        p = Producer(gen(), chunksize=1)
+        orig = multiprocessing.get_start_method()
+        multiprocessing.set_start_method("spawn", force=True)
+        try:
+            subject = Producer(iter([1, 2, 3]), chunksize=1)
 
-        self.assertEqual([0, 1, 2], list(p))
+            self.assertEqual([1, 2, 3], list(subject))
 
-    def test_producer_with_throwing_generator_under_fork(self) -> None:
-        p = Producer(throwing_gen(), chunksize=1)
+            with self.assertRaises(RuntimeError) as cm:
+                Producer(gen(), chunksize=1)
 
-        self.assertEqual(1, next(p))
-        self.assertRaises(AssertionError, next, p)
+            self.assertIn("requires start method 'fork'", str(cm.exception))
+            self.assertIn("spawn", str(cm.exception))
+        finally:
+            multiprocessing.set_start_method(orig, force=True)
 
-    def test_producer_with_list_under_all_start_methods(self) -> None:
+    def test_when_throwing_generator_under_fork_then_it_forwards_exception(self) -> None:
+        try:
+            fork_ctx = multiprocessing.get_context("fork")
+        except ValueError:
+            self.skipTest("fork start method not available")
+
+        subject = Producer(throwing_gen(), chunksize=1, mp_context=fork_ctx)
+
+        self.assertEqual(1, next(subject))
+        self.assertRaises(AssertionError, next, subject)
+
+    def test_when_picklable_under_all_mp_contexts_then_it_works(self) -> None:
         for method in multiprocessing.get_all_start_methods():
-            with self.subTest(start_method=method):
-                multiprocessing.set_start_method(method, force=True)
+            with self.subTest(mp_context=method):
+                ctx = multiprocessing.get_context(method)
 
-                p = Producer(iter([1, 2, 3]), chunksize=1)
-                actual = list(p)
+                subject = Producer(iter([1, 2, 3]), chunksize=1, mp_context=ctx)
 
-                self.assertEqual([1, 2, 3], actual)
+                self.assertEqual([1, 2, 3], list(subject))
 
-    def test_producer_with_generator_under_non_fork_raises_clear_error(self) -> None:
+    def test_when_generator_under_non_fork_mp_context_then_it_raises_clear_error(self) -> None:
         for method in multiprocessing.get_all_start_methods():
             if method == "fork":
                 continue
-            with self.subTest(start_method=method):
-                multiprocessing.set_start_method(method, force=True)
+            with self.subTest(mp_context=method):
+                ctx = multiprocessing.get_context(method)
 
                 with self.assertRaises(RuntimeError) as cm:
-                    Producer(gen(), chunksize=1)
+                    Producer(gen(), chunksize=1, mp_context=ctx)
 
                 self.assertIn("requires start method 'fork'", str(cm.exception))
                 self.assertIn(method, str(cm.exception))
+
+    def test_when_local_differs_from_global_then_local_wins(self) -> None:
+        try:
+            fork_ctx = multiprocessing.get_context("fork")
+            multiprocessing.get_context("spawn")
+        except ValueError:
+            self.skipTest("fork and spawn start methods required")
+
+        orig = multiprocessing.get_start_method()
+        multiprocessing.set_start_method("spawn", force=True)
+        try:
+            subject = Producer(gen(), chunksize=1, mp_context=fork_ctx)
+
+            self.assertEqual([0, 1, 2], list(subject))
+
+            spawn_ctx = multiprocessing.get_context("spawn")
+
+            subject = Producer(iter([1, 2, 3]), chunksize=1, mp_context=spawn_ctx)
+
+            self.assertEqual([1, 2, 3], list(subject))
+        finally:
+            multiprocessing.set_start_method(orig, force=True)
+
+    def test_when_consumer_mp_context_spawn_then_it_forwards(self) -> None:
+        try:
+            spawn_ctx = multiprocessing.get_context("spawn")
+        except ValueError:
+            self.skipTest("spawn start method not available")
+
+        manager = multiprocessing.managers.BaseManager()
+        manager.register("Coroutine", ProcessConsumerTest.Coroutine)
+        manager.start()
+        coro = manager.Coroutine()  # type: ignore[attr-defined]
+
+        subject = Consumer(coro, mp_context=spawn_ctx)
+
+        subject.send("a value")
+        subject.close()
+
+        self.assertEqual(["a value"], coro.get_values())
