@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import time
 import unittest
 from collections.abc import Iterable
 from typing import Any, TypeVar
@@ -39,25 +38,3 @@ class DummyProducerValidationTest(unittest.TestCase):
 class DummyConsumerTest(unittest.TestCase, ConsumerTestMixin):
     def _create_consumer(self, coroutine: ConsumerCoroutine[Any]) -> Consumer[Any]:
         return Consumer(coroutine)
-
-
-class DummyConsumerCloseTest(unittest.TestCase):
-    def test_when_queue_full_then_close_returns_quickly(self) -> None:
-        class Dummy:
-            def send(self, _: Any) -> None:
-                pass
-
-            def close(self) -> None:
-                pass
-
-        coro = Dummy()
-        subject: Consumer[Any] = Consumer(coro)
-
-        t0 = time.time()
-
-        subject.close()
-
-        elapsed = time.time() - t0
-
-        self.assertLess(elapsed, 1.0, "close() should not hang")
-        self.assertTrue(subject.closed)

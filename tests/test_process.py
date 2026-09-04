@@ -46,12 +46,14 @@ class ProcessProducerValidationTest(ProcessProducerTest):
         with self.assertRaises(AssertionError):
             Producer(range(3), chunksize=1, maxsize=-5)
 
+    def test_when_chunksize_invalid_then_assertion_error(self) -> None:
         with self.assertRaises(AssertionError):
             Producer(range(3), chunksize=0, maxsize=5)
 
         with self.assertRaises(AssertionError):
             Producer(range(3), chunksize=-1, maxsize=5)
 
+    def test_when_chunksize_larger_than_maxsize_then_assertion_error(self) -> None:
         with self.assertRaises(AssertionError):
             Producer(range(3), chunksize=5, maxsize=1)
 
@@ -168,13 +170,15 @@ class ProcessConsumerTest(unittest.TestCase, ConsumerTestMixin):
         self.assertRaises(ValueError, subject.send, 0)
         self.assertEqual([], self.coroutine.get_values())
 
-    def test_when_closed_then_closing_should_work(self) -> None:
+    def test_when_close_called_twice_then_idempotent(self) -> None:
         subject = self._create_consumer(self.coroutine)
 
         subject.close()
         subject.close()
 
+        self.assertTrue(subject.closed)
         self.assertEqual([], self.coroutine.get_values())
+        self.assertTrue(self.coroutine.get_closed())
 
     def test_when_closed_then_it_should_close_the_passed_coroutine(self) -> None:
         subject = self._create_consumer(self.coroutine)
@@ -240,6 +244,18 @@ class ProcessConsumerCloseTest(unittest.TestCase):
 
 class ProcessConsumerValidationTest(unittest.TestCase):
     def test_when_maxsize_invalid_then_assertion_error(self) -> None:
+        manager = multiprocessing.managers.BaseManager()
+        manager.register("Coroutine", ProcessConsumerTest.Coroutine)
+        manager.start()
+        coro = manager.Coroutine()  # type: ignore[attr-defined]
+
+        with self.assertRaises(AssertionError):
+            Consumer(coro, maxsize=0)
+
+        with self.assertRaises(AssertionError):
+            Consumer(coro, maxsize=-5)
+
+    def test_when_shutdown_timeout_invalid_then_assertion_error(self) -> None:
         manager = multiprocessing.managers.BaseManager()
         manager.register("Coroutine", ProcessConsumerTest.Coroutine)
         manager.start()

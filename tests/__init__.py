@@ -200,15 +200,6 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         self.assertRaises(ValueError, subject.send, 0)
         coroutine.send.assert_not_called()
 
-    def test_when_closed_then_closing_should_work(self) -> None:
-        coroutine = mock.MagicMock()
-        subject = self._create_consumer(coroutine)
-
-        subject.close()
-        subject.close()
-
-        coroutine.send.assert_not_called()
-
     def test_when_closed_then_it_should_close_the_passed_coroutine(self) -> None:
         coroutine = mock.MagicMock()
 
@@ -228,7 +219,7 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         self.assertTrue(subject.closed)
         self.assertRaises(ValueError, subject.send, "b")
 
-    def test_when_close_called_twice_then_it_works(self) -> None:
+    def test_when_close_called_twice_then_idempotent(self) -> None:
         coroutine = mock.MagicMock()
 
         subject = self._create_consumer(coroutine)
@@ -237,6 +228,8 @@ class ConsumerTestMixin(metaclass=abc.ABCMeta):
         subject.close()
 
         self.assertTrue(subject.closed)
+        coroutine.send.assert_not_called()
+        coroutine.close.assert_called_once_with()
 
     def test_when_coroutine_raises_then_it_is_not_silently_swallowed(self) -> None:
         subject = self._create_consumer(ThrowingCoroutine())

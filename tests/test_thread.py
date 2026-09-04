@@ -89,6 +89,16 @@ class ThreadConsumerValidationTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             Consumer(coro, maxsize=-5)
 
+    def test_when_close_timeout_invalid_then_assertion_error(self) -> None:
+        class Dummy:
+            def send(self, _: Any) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        coro = Dummy()
+
         with self.assertRaises(AssertionError):
             Consumer(coro, maxsize=1, close_timeout_secs=0)
 

@@ -203,6 +203,7 @@ class Consumer(IConsumer[T_contra]):
         shutdown_timeout_secs: float = 1.0,
         mp_context: BaseContext | None = None,
     ) -> None:
+        assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
         assert (
             shutdown_timeout_secs > 0
         ), f"`shutdown_timeout_secs` must be positive, but is {shutdown_timeout_secs}."
