@@ -105,6 +105,21 @@ class ThreadConsumerValidationTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             Consumer(coro, maxsize=1, close_timeout_secs=-1)
 
+    def test_when_send_timeout_negative_then_assertion_error(self) -> None:
+        class Dummy:
+            def send(self, _: Any) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        subject = Consumer(Dummy())
+
+        with self.assertRaises(AssertionError):
+            subject.send("value", timeout=-1)
+
+        subject.close()
+
 
 class ThreadMultiProducerTest(unittest.TestCase):
     def test_when_multiple_iterables_have_data_then_it_should_consume_from_all_of_them(

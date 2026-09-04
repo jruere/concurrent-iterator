@@ -238,6 +238,8 @@ class Consumer(IConsumer[T_contra]):
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
+        assert timeout >= 0, f"`timeout` must be non-negative, but is {timeout}."
+
         # Fail fast once the worker is known to have failed: close() releases
         # resources and re-raises the stashed error.
         with suppress(Empty):

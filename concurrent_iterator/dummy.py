@@ -63,7 +63,7 @@ class Consumer(IConsumer[T_contra]):
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
         """`timeout` is not supported and fails if greater than 0."""
-        assert timeout in (0, 0.0), "`timeout` is not supported in this implementation."
+        assert timeout in (0, 0.0), f"`timeout` is not supported in this implementation: {timeout}."
 
         self._coroutine.send(value)
 

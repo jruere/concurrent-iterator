@@ -7,6 +7,11 @@ Run a task: `devenv --no-tui --quiet tasks run publish:clean 2>&1 >/dev/null`
 # Coding
 Never use recursion.
 
+## Validation
+Every public interface implementation should validate the inputs using assertions as a sort of sanity check. The assertion message must explain the problem, and show the incorrect value.
+This validation must be first in the function, as a separate paragraph.
+Never check types. mypy will handle those.
+
 ## Type Annotations
 Prefer type inference to explicit annotations.
 When a concrete type is assigned to a variable, do not annotate the type.
@@ -15,6 +20,8 @@ When a concrete type is assigned to a variable, do not annotate the type.
 Mirror the structure of the library in tests. E.g.: place all `concurrent_iterator.thread` tests in `tests.test_thread`.
 
 List possible tests: `devenv --no-tui --quiet tasks list | rg test:`
+Type check: `mypy`
+Lint: `ruff check *.py **/*.py`
 Run one test: `devenv --no-tui --quiet tasks run test:py314`
 Run all tests, checkers, and linters: `devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring ' ; echo EXITS:${PIPESTATUS[0]}` (Do not truncate output)
 

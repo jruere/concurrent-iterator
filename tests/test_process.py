@@ -267,6 +267,19 @@ class ProcessConsumerValidationTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             Consumer(coro, maxsize=1, shutdown_timeout_secs=-1)
 
+    def test_when_send_timeout_negative_then_assertion_error(self) -> None:
+        manager = multiprocessing.managers.BaseManager()
+        manager.register("Coroutine", ProcessConsumerTest.Coroutine)
+        manager.start()
+        coro = manager.Coroutine()  # type: ignore[attr-defined]
+
+        subject = Consumer(coro, mp_context=multiprocessing.get_context("fork"))
+
+        with self.assertRaises(AssertionError):
+            subject.send("value", timeout=-1)
+
+        subject.close()
+
 
 def gen(count: int = 3) -> Iterator[int]:
     yield from range(count)

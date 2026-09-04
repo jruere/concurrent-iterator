@@ -158,6 +158,8 @@ class Producer(MultiProducer[T_co]):
     """
 
     def __init__(self, iterable: Iterable[T_co], maxsize: int = 100) -> None:
+        assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
+
         super().__init__([iterable], maxsize)
 
 
@@ -187,6 +189,8 @@ class Consumer(IConsumer[T_contra]):
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
+        assert timeout >= 0, f"`timeout` must be non-negative, but is {timeout}."
+
         # Fail fast once the worker is known to have failed: close() releases
         # resources and re-raises the stashed error. No lock: the worker is
         # the only writer, a stale read merely delays this by one send, and
