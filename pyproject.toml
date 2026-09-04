@@ -5,6 +5,8 @@ description = "Classes to run producers (iterators) and consumers (coroutines) i
 readme = "README.md"
 license = { text = "LGPLv3" }
 requires-python = ">=3.9"
+authors = [{ name = "Javier Ruere", email = "javier@ruere.com.ar" }]
+urls = { Homepage = "https://github.com/jruere/concurrent-iterator" }
 keywords = ["concurrency", "parallelism", "iterator", "iterable", "pipeline"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -58,9 +60,6 @@ target-version = "py39"
 fix = true
 force-exclude = true
 line-length = 100
-
-[tool.setuptools.package-data]
-concurrent_iterator = ["py.typed"]
 
 [build-system]
 requires = ["setuptools", "wheel"]
