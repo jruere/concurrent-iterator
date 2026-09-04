@@ -45,4 +45,3 @@ Name tests using BDD-like style. E.g. `test_when_{escenario}_then_it_{expected o
 ## Docstrings
 Do not add redundant information. E.g. if a function has type annotations, do not document the same information.
 Type annotations are better than documentation, when containing the same info.
-Parameter descriptions are OK even when simple.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 R = TypeVar("R")
 
@@ -25,4 +25,4 @@ def check_open(func: Callable[..., R]) -> Callable[..., R]:
             raise ValueError(f"{func.__name__} operation on closed Consumer")
         return func(self, *args, **kwargs)
 
-    return cast(Callable[..., R], _f)
+    return _f
