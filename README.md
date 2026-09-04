@@ -104,11 +104,9 @@ The `with` statement ensures the background thread is properly cleaned up.
 from concurrent_iterator.thread import Consumer
 
 def worker():
-    received = []
     while True:
         value = yield  # Coroutine protocol
-        received.append(value)
-    # ... do work with value ...
+        # ... do work with value ...
 
 coro = worker()
 next(coro)  # Prime the coroutine
@@ -120,7 +118,8 @@ with Consumer(coro, maxsize=5) as consumer:
 ```
 
 The Consumer runs the coroutine in a background thread. `send()` enqueues values;
-if the queue is full and a `timeout` is given, it raises `WillNotConsume`
+if the value cannot be enqueued within `timeout` (default `0`, never blocks),
+it raises `WillNotConsume`
 (imported from `concurrent_iterator`), signaling the caller to retry.
 
 ### Context manager
@@ -141,7 +140,7 @@ with Producer(range(100), maxsize=10) as items:
 ## Exception handling
 
 Exceptions raised by generators are forwarded to the main thread. When a
-generator raises, the producer wraps the exception and re-raises it from
+generator raises, the producer forwards the exception, re-raising it from
 `__next__()`. After an exception, the producer is terminated and raises
 `StopIteration` on subsequent calls.
 

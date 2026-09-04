@@ -53,10 +53,7 @@ class Producer(IProducer[T_co]):
 
 
 class Consumer(IConsumer[T_contra]):
-    """Dummy implementation that doesn't use concurrency.
-
-    The timeout parameter is ignored, this implementation will block forever.
-    """
+    """Dummy implementation that doesn't use concurrency."""
 
     def __init__(self, coroutine: ConsumerCoroutine[T_contra]) -> None:
         self._coroutine = coroutine
@@ -65,10 +62,7 @@ class Consumer(IConsumer[T_contra]):
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
-        """
-
-        `timeout` is not implemented, and will fail if greater than 0.
-        """
+        """`timeout` is not supported and fails if greater than 0."""
         assert timeout in (0, 0.0), "`timeout` is not supported in this implementation."
 
         self._coroutine.send(value)

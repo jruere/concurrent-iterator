@@ -16,7 +16,7 @@ Mirror the structure of the library in tests. E.g.: place all `concurrent_iterat
 
 List possible tests: `devenv --no-tui --quiet tasks list | rg test:`
 Run one test: `devenv --no-tui --quiet tasks run test:py314`
-Run all tests, checkers, and linters: `devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring '` (Do not truncate output)
+Run all tests, checkers, and linters: `devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring ' ; echo EXITS:${PIPESTATUS[0]}` (Do not truncate output)
 
 ## Efficiency
 `devenv test` runs git-hooks plus tests for several interpreters.
@@ -45,3 +45,4 @@ Name tests using BDD-like style. E.g. `test_when_{escenario}_then_it_{expected o
 ## Docstrings
 Do not add redundant information. E.g. if a function has type annotations, do not document the same information.
 Type annotations are better than documentation, when containing the same info.
+Parameter descriptions are OK even when simple.

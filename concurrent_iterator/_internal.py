@@ -12,7 +12,7 @@ class StopIterationSentinel:
 
 
 class ExceptionInUserIterable:
-    """User-provided iterable raises an exception."""
+    """Wraps an exception raised by a user iterable."""
 
     def __init__(self, exception: BaseException) -> None:
         self.exception = exception

@@ -43,8 +43,8 @@ class Producer(IProducer[T_co]):
     """
 
     def __init__(self, iterable: Iterable[T_co], maxsize: int = 100, chunksize: int = 1) -> None:
-        assert chunksize > 0
-        assert maxsize >= chunksize
+        assert chunksize > 0, f"`chunksize` must be positive, but is {chunksize}."
+        assert maxsize >= chunksize, f"`maxsize` ({maxsize}) must be >= `chunksize` ({chunksize})."
 
         self._iterator = iter(iterable)
 
@@ -85,10 +85,10 @@ class Producer(IProducer[T_co]):
                     raise RuntimeError("Child process died.")
                 is_process_alive = self._process.is_alive()
             else:
-                if chunk == StopIterationSentinel:  # Might not work across procs.
+                if chunk is StopIterationSentinel:
                     self.close()
                 else:
-                    assert isinstance(chunk, list), chunk  # For mypy, sanity check, respectively.
+                    assert isinstance(chunk, list), chunk  # For mypy and as sanity check.
                     # Reversed to consume it as a stack.
                     self._current_chunk.extend(reversed(chunk))
 
@@ -177,7 +177,7 @@ class Consumer(IConsumer[T_contra]):
     ) -> None:
         assert (
             shutdown_timeout_secs > 0
-        ), f"Timeout must be possitive, but was {shutdown_timeout_secs}."
+        ), f"`shutdown_timeout_secs` must be positive, but is {shutdown_timeout_secs}."
 
         self._coroutine: ConsumerCoroutine[T_contra] = coroutine
         self._shutdown_timeout_secs = shutdown_timeout_secs

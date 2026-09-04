@@ -19,8 +19,8 @@ class IProducer(Iterator[T_co], metaclass=ABCMeta):
     """Interface for Producers.
 
     Implementations of this interface are "normal" iterators that accept an
-    iterator and return its values with the characteristic of running the given
-    iterator in parallel and buffering a number of values.
+    iterator and return its values, optionally running the given iterator
+    in parallel and buffering a number of values.
     """
 
     @abstractmethod
@@ -38,11 +38,11 @@ class IProducer(Iterator[T_co], metaclass=ABCMeta):
 
     @abstractmethod
     def __enter__(self) -> IProducer[T_co]:
-        """Enter context manager."""
+        pass
 
     @abstractmethod
     def __exit__(self, *args: object) -> bool:
-        """Exit context manager."""
+        pass
 
 
 class WillNotConsume(Exception):
@@ -84,8 +84,8 @@ class IConsumer(Generic[T_contra], metaclass=ABCMeta):
 
     @abstractmethod
     def __enter__(self) -> IConsumer[T_contra]:
-        """Enter context manager."""
+        pass
 
     @abstractmethod
     def __exit__(self, *args: object) -> bool:
-        """Exit context manager."""
+        pass
