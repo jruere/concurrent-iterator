@@ -2,10 +2,7 @@
 
 Always read the README at the beginning of the session:
 
-`rg -FsxA 200 '## Intro' README.md`
-
-Code style guidelines
-Security considerations
+    rg -FsxA 200 '## Intro' README.md
 
 ## Environment
 
@@ -18,6 +15,10 @@ Run a task: `devenv --no-tui --quiet tasks run publish:clean 2>&1 >/dev/null`
 ## Coding
 
 Never use recursion.
+
+### Code style guidelines
+
+`black` formats, and it runs automatically. Do not run it.
 
 ### TDD
 
@@ -60,10 +61,8 @@ Mirror the structure of the library in tests. E.g.: place all
   `devenv --no-tui --quiet tasks run test:py314`
 - Run tests for supported Python versions, `mypy`, `ruff`, formatters:
   
-  ```bash
-  devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring ' ; \
-  echo EXITS:${PIPESTATUS[0]}
-  ```
+      devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring ' ; \
+      echo EXITS:${PIPESTATUS[0]}
   
   (Do not truncate output)
 
