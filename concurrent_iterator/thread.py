@@ -5,14 +5,10 @@ import threading
 from collections.abc import Iterable, Iterator
 from contextlib import suppress
 from queue import Empty, Full, Queue
-from typing import Any, Literal, TypeVar
+from typing import Any, TypeVar
 
-from concurrent_iterator import (
-    ConsumerCoroutine,
-    IConsumer,
-    IProducer,
-    WillNotConsume,
-)
+from concurrent_iterator import ConsumerCoroutine, WillNotConsume
+from concurrent_iterator._abc import BaseConsumer, BaseProducer
 from concurrent_iterator._internal import (
     ExceptionInUserIterable,
     StopIterationSentinel,
@@ -23,7 +19,7 @@ T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
 
-class MultiProducer(IProducer[T_co]):
+class MultiProducer(BaseProducer[T_co]):
     """Uses a thread to produce and buffer values from several iterables.
 
     This is different from merging multiple independent producers in that
@@ -41,11 +37,11 @@ class MultiProducer(IProducer[T_co]):
     def __init__(self, iterables: Iterable[Iterable[T_co]], maxsize: int = 100) -> None:
         assert maxsize > 0, f"`maxsize` must be positive, but is {maxsize}."
 
+        super().__init__()
         self._queue: Queue[T_co | ExceptionInUserIterable | type[StopIterationSentinel]] = Queue(
             maxsize
         )
         self._threads: list[threading.Thread] = []
-        self._closed = False
         self._stop_event = threading.Event()
 
         self._spawn_workers(iterables)
@@ -90,19 +86,7 @@ class MultiProducer(IProducer[T_co]):
                 # Mypy does not narrow the type when comparing with `is`.
                 return item  # type: ignore[return-value]
 
-    def __iter__(self) -> Iterator[T_co]:
-        return self
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def close(self) -> None:
-        if self._closed:
-            return
-
-        self._closed = True
-
+    def _do_close(self) -> None:
         self._stop_event.set()
 
         for thread in self._threads:
@@ -114,21 +98,6 @@ class MultiProducer(IProducer[T_co]):
 
         self._active_threads = 0
         del self._queue
-
-    def __enter__(self) -> MultiProducer[T_co]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False
-
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            logging.getLogger(__name__ + "." + type(self).__name__).exception(
-                "Exception in __del__"
-            )
 
     @staticmethod
     def _run(iterator: Iterator[T_co], queue: Queue[Any], stop_event: threading.Event) -> None:
@@ -163,7 +132,7 @@ class Producer(MultiProducer[T_co]):
         super().__init__([iterable], maxsize)
 
 
-class Consumer(IConsumer[T_contra]):
+class Consumer(BaseConsumer[T_contra]):
     """Feeds the given coroutine in a separate thread."""
 
     def __init__(
@@ -177,11 +146,10 @@ class Consumer(IConsumer[T_contra]):
             close_timeout_secs > 0
         ), f"`close_timeout_secs` must be positive, but is {close_timeout_secs}."
 
+        super().__init__()
         self._coroutine = coroutine
         self._close_timeout_secs = close_timeout_secs
 
-        self._closed = False
-        self._error: BaseException | None = None
         self._queue: Queue[Any] = Queue(maxsize)
         self._thread = threading.Thread(target=self._run, args=(coroutine, self._queue))
 
@@ -202,12 +170,7 @@ class Consumer(IConsumer[T_contra]):
         except Full:
             raise WillNotConsume()
 
-    def close(self) -> None:
-        if self._closed:
-            return
-
-        self._closed = True
-
+    def _do_close(self) -> None:
         # A dead worker needs no sentinel; don't block waiting for one that
         # will never drain the queue (e.g. after it failed).
         if self._thread.is_alive():
@@ -230,28 +193,6 @@ class Consumer(IConsumer[T_contra]):
                 "Closed with %d messages in queue.", self._queue.qsize()
             )
         del self._queue
-
-        if self._error is not None:
-            raise self._error
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def __enter__(self) -> Consumer[T_contra]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False
-
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            logging.getLogger(__name__ + "." + type(self).__name__).exception(
-                "Exception in __del__"
-            )
 
     def _run(self, coroutine: ConsumerCoroutine[T_contra], queue: Queue[Any]) -> None:
         try:

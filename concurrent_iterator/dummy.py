@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
-from typing import Literal, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
-from concurrent_iterator import ConsumerCoroutine, IConsumer, IProducer
+from concurrent_iterator import ConsumerCoroutine
+from concurrent_iterator._abc import BaseConsumer, BaseProducer
 from concurrent_iterator._internal import check_open
 
-T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 T_contra = TypeVar("T_contra", contravariant=True)
 
 
-class Producer(IProducer[T_co]):
+class Producer(BaseProducer[T_co]):
     """Dummy implementation that doesn't use concurrency."""
 
     def __init__(self, iterable: Iterable[T_co], maxsize: int | None = None) -> None:
@@ -22,9 +22,8 @@ class Producer(IProducer[T_co]):
             maxsize is None or maxsize > 0
         ), f"`maxsize` must be None or positive, but is {maxsize}."
 
+        super().__init__()
         self._iterator = iter(iterable)
-
-        self._closed = False
 
     def __next__(self) -> T_co:
         if self._closed:
@@ -36,31 +35,16 @@ class Producer(IProducer[T_co]):
             self.close()
             raise
 
-    def __iter__(self) -> Iterator[T_co]:
-        return self
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def close(self) -> None:
-        self._closed = True
-
-    def __enter__(self) -> Producer[T_co]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False
+    def _do_close(self) -> None:
+        pass
 
 
-class Consumer(IConsumer[T_contra]):
+class Consumer(BaseConsumer[T_contra]):
     """Dummy implementation that doesn't use concurrency."""
 
     def __init__(self, coroutine: ConsumerCoroutine[T_contra]) -> None:
+        super().__init__()
         self._coroutine = coroutine
-
-        self._closed = False
 
     @check_open
     def send(self, value: T_contra, timeout: float = 0) -> None:
@@ -69,21 +53,5 @@ class Consumer(IConsumer[T_contra]):
 
         self._coroutine.send(value)
 
-    def close(self) -> None:
-        if self._closed:
-            return
-
-        self._closed = True
-
+    def _do_close(self) -> None:
         self._coroutine.close()
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def __enter__(self) -> Consumer[T_contra]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False

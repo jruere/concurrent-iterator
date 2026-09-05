@@ -9,14 +9,10 @@ from collections.abc import Iterable, Iterator
 from contextlib import suppress
 from multiprocessing.context import BaseContext
 from queue import Empty, Full
-from typing import Literal, TypeVar, Union
+from typing import TypeVar, Union
 
-from concurrent_iterator import (
-    ConsumerCoroutine,
-    IConsumer,
-    IProducer,
-    WillNotConsume,
-)
+from concurrent_iterator import ConsumerCoroutine, WillNotConsume
+from concurrent_iterator._abc import BaseConsumer, BaseProducer
 from concurrent_iterator._internal import (
     ExceptionInUserIterable,
     StopIterationSentinel,
@@ -36,7 +32,7 @@ def _resolve_mp_context(mp_context: BaseContext | None) -> BaseContext:
     return mp_context
 
 
-class Producer(IProducer[T_co]):
+class Producer(BaseProducer[T_co]):
     """Uses a separate process to produce and buffer values from the given
     iterable.
 
@@ -65,11 +61,11 @@ class Producer(IProducer[T_co]):
         assert chunksize > 0, f"`chunksize` must be positive, but is {chunksize}."
         assert maxsize >= chunksize, f"`maxsize` ({maxsize}) must be >= `chunksize` ({chunksize})."
 
+        super().__init__()
         self._iterator = iter(iterable)
 
         ctx = _resolve_mp_context(mp_context)
         self._queue: multiprocessing.Queue[_QT[T_co]] = ctx.Queue(maxsize // chunksize)
-        self._closed = False
         self._current_chunk: list[T_co | ExceptionInUserIterable] = []
         self._log = logging.getLogger(__name__ + "." + type(self).__name__)
         # BaseContext stubs omit Process (only concrete contexts define it).
@@ -125,18 +121,7 @@ class Producer(IProducer[T_co]):
 
         return item
 
-    def __iter__(self) -> Iterator[T_co]:
-        return self
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def close(self) -> None:
-        if self._closed:
-            return
-
-        self._closed = True
+    def _do_close(self) -> None:
         if self._process.is_alive():
             self._process.terminate()
         self._process.join(timeout=1.0)
@@ -145,21 +130,6 @@ class Producer(IProducer[T_co]):
             self._queue.cancel_join_thread()
         del self._queue
         del self._current_chunk
-
-    def __enter__(self) -> Producer[T_co]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False
-
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            logging.getLogger(__name__ + "." + type(self).__name__).exception(
-                "Exception in __del__"
-            )
 
     def _run(
         self, iterator: Iterator[T_co], queue: multiprocessing.Queue[_QT[T_co]], chunksize: int
@@ -188,7 +158,7 @@ class Producer(IProducer[T_co]):
                     queue.put(chunk)
 
 
-class Consumer(IConsumer[T_contra]):
+class Consumer(BaseConsumer[T_contra]):
     """Feeds the given coroutine in a separate process.
 
     :param mp_context: multiprocessing context used for Queue and Process.
@@ -210,12 +180,11 @@ class Consumer(IConsumer[T_contra]):
             shutdown_timeout_secs > 0
         ), f"`shutdown_timeout_secs` must be positive, but is {shutdown_timeout_secs}."
 
+        super().__init__()
         ctx = _resolve_mp_context(mp_context)
         self._coroutine: ConsumerCoroutine[T_contra] = coroutine
         self._shutdown_timeout_secs = shutdown_timeout_secs
 
-        self._closed = False
-        self._error: BaseException | None = None
         self._queue: multiprocessing.Queue[T_contra | type[StopIterationSentinel]] = ctx.Queue(
             maxsize
         )
@@ -254,12 +223,7 @@ class Consumer(IConsumer[T_contra]):
         except Full:
             raise WillNotConsume()
 
-    def close(self) -> None:
-        if self._closed:
-            return
-
-        self._closed = True
-
+    def _do_close(self) -> None:
         deadline = time.monotonic() + self._shutdown_timeout_secs
         try:
             self._queue.put(StopIterationSentinel, timeout=self._shutdown_timeout_secs)
@@ -286,28 +250,6 @@ class Consumer(IConsumer[T_contra]):
         self._errors.close()
         self._errors.cancel_join_thread()
         del self._errors
-
-        if self._error is not None:
-            raise self._error
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def __enter__(self) -> Consumer[T_contra]:
-        return self
-
-    def __exit__(self, *_: object) -> Literal[False]:
-        self.close()
-        return False
-
-    def __del__(self) -> None:
-        try:
-            self.close()
-        except Exception:
-            logging.getLogger(__name__ + "." + type(self).__name__).exception(
-                "Exception in __del__"
-            )
 
     @staticmethod
     def _run(
