@@ -80,6 +80,7 @@ in
     check-xml.enable = true;
     check-yaml.enable = true;
     end-of-file-fixer.enable = true;
+    markdownlint.enable = true;
     mdsh.enable = true;
     pretty-format-json = {
       enable = true;
