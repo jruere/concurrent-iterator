@@ -7,8 +7,7 @@ Always read the README at the beginning of the session:
 ## Environment
 
 `devenv` is used to manage the environment, and project "tasks".
-The `devenv shell` is already active, there's no need for
-`devenv shell {command}`.
+`devenv shell` is already active, there's no need for `devenv shell {command}`.
 List tasks: `devenv --no-tui --quiet tasks list`
 Run a task: `devenv --no-tui --quiet tasks run publish:clean 2>&1 >/dev/null`
 
@@ -20,29 +19,13 @@ Never use recursion.
 
 `black` formats, and it runs automatically. Do not run it.
 
-### TDD
-
-Use TDD while developing:
-
-1. Write one new test at a time.
-2. Run tests and it must fail. Failure is not an error on a missing
-   piece of the interface, but an actual failure about the
-   missing/incorrect logic.
-3. Implement simplest fix
-4. Run tests and it must pass.
-5. Refactor.
-
-Be explicit about each step.
-
-Finally, double-check that the wanted functionality was completely implemented.
-
 ### Validation
 
 Every public interface implementation should validate the inputs using
 assertions as a sort of sanity check. The assertion message must
 explain the problem, and show the incorrect value.
 This validation must be first in the function, as a separate paragraph.
-Never check types. mypy will handle those.
+Never validate types with code. Mypy will handle those.
 
 ### Type Annotations
 
@@ -51,9 +34,9 @@ When a concrete type is assigned to a variable, do not annotate the type.
 
 ## Testing
 
-Mirror the structure of the library in tests. E.g.: place all
-`concurrent_iterator.thread` tests in `tests.test_thread`.
-
+- `unittest` is the testing framework.
+- Mirror the structure of the library in tests. E.g.: place all
+`concurrent_iterator.thread` tests in `tests.test_thread`
 - List possible tests: `devenv --no-tui --quiet tasks list | rg test:`
 - Type check: `mypy` (and less importantly, `pyright`)
 - Lint: `ruff check *.py **/*.py`
@@ -80,7 +63,7 @@ Mirror the structure of the library in tests. E.g.: place all
 Organize tests into 3 paragraphs: setup, execution, assertions.
 Assign the type being tested to variable `subject`.
 Name tests using BDD-like style. E.g.
-`test_when_{escenario}_then_it_{expected outcome}`.
+`test_when_{scenario}_then_it_{expected outcome}`.
 
 ## Documentation
 
