@@ -3,7 +3,7 @@
 let
   pythonVersions = [ "3.9" "3.10" "3.11" "3.12" "3.13" "3.14"];
   oldPythons = map
-    (version: inputs.nixpkgs-python.packages.${pkgs.system}.${version})
+    (version: inputs.nixpkgs-python.packages.${pkgs.stdenv.hostPlatform.system}.${version})
     pythonVersions;
 
   envs = [
@@ -26,7 +26,7 @@ in
 {
   languages.python = {
     enable = true;
-    version = "3.13";
+    version = "3.14";
   };
 
   # ------------------------------------------------------------------
