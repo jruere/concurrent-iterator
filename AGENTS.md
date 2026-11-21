@@ -1,8 +1,6 @@
 # Agent Instructions
 
-Always read the README at the beginning of the session:
-
-    rg -FsxA 200 '## Intro' README.md
+Always read the README at the beginning of the session.
 
 ## Environment
 
