@@ -59,7 +59,7 @@ class ProcessProducerValidationTest(ProcessProducerTest):
 
 
 class ProcessProducerFailureTest(ProcessProducerTest):
-    def test_when_child_dies_then_next_raises_runtime_error(self) -> None:
+    def test_when_child_dies_then_it_raises_runtime_error_and_closes(self) -> None:
         gate = self.fork_mp_context.Event()
 
         def gated_count() -> Iterator[int]:
@@ -71,24 +71,23 @@ class ProcessProducerFailureTest(ProcessProducerTest):
 
         subject = Producer(gated_count(), chunksize=1, maxsize=1, mp_context=self.fork_mp_context)
 
-        self.assertEqual(0, next(subject))
+        first = next(subject)
         # Kill child while queue is empty
-
         subject._process.terminate()
         subject._process.join(timeout=1.0)
 
-        self.assertFalse(subject._process.is_alive())
-
         t0 = time.time()
-
         with self.assertRaises(RuntimeError) as cm:
             next(subject)
+        elapsed = time.time() - t0
 
+        self.assertRaises(StopIteration, next, subject)
+
+        self.assertEqual(0, first)
+        self.assertFalse(subject._process.is_alive())
         self.assertIn("Child process died", str(cm.exception))
-        self.assertLess(time.time() - t0, 1.0, "should not hang")
-
-        with self.assertRaises(RuntimeError):
-            next(subject)
+        self.assertLess(elapsed, 1.0, "should not hang")
+        self.assertTrue(subject.closed)
 
         subject.close()
 
@@ -122,6 +121,8 @@ class ProcessProducerFailureTest(ProcessProducerTest):
                 self.fail("should raise RuntimeError, not StopIteration")
 
         self.assertTrue(raised, "expected RuntimeError after child died")
+        self.assertTrue(subject.closed)
+        self.assertRaises(StopIteration, next, subject)
 
         subject.close()
 

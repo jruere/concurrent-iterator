@@ -98,6 +98,7 @@ class Producer(BaseProducer[T_co]):
             except Empty:
                 # To avoid a race condition, reporting this error condition is delayed one loop.
                 if not is_process_alive:
+                    self.close()
                     raise RuntimeError("Child process died.")
                 is_process_alive = self._process.is_alive()
             else:
