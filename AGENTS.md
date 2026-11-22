@@ -6,8 +6,8 @@ Always read the README at the beginning of the session.
 
 `devenv` is used to manage the environment, and project "tasks".
 `devenv shell` is already active, there's no need for `devenv shell {command}`.
-List tasks: `devenv --no-tui --quiet tasks list`
-Run a task: `devenv --no-tui --quiet tasks run publish:clean 2>&1 >/dev/null`
+List tasks: `devenv --quiet tasks list`
+Run a task: `devenv --quiet tasks run publish:clean 2>&1 >/dev/null`
 
 ## Coding
 
@@ -35,14 +35,14 @@ When a concrete type is assigned to a variable, do not annotate the type.
 - `unittest` is the testing framework.
 - Mirror the structure of the library in tests. E.g.: place all
 `concurrent_iterator.thread` tests in `tests.test_thread`
-- List possible tests: `devenv --no-tui --quiet tasks list | rg test:`
+- List possible tests: `devenv --quiet tasks list | rg test:`
 - Type check: `mypy` (and less importantly, `pyright`)
 - Lint: `ruff check *.py **/*.py`
 - Run tests for a given Python version:
-  `devenv --no-tui --quiet tasks run test:py314`
+  `devenv --quiet tasks run test:py314`
 - Run tests for supported Python versions, `mypy`, `ruff`, formatters:
   
-      devenv --no-tui test 2>&1 | rg -v ' in \d| ignoring ' ; \
+      devenv test 2>&1 | rg -v ' in \d| ignoring ' ; \
       echo EXITS:${PIPESTATUS[0]}
   
   (Do not truncate output)
